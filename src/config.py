@@ -33,3 +33,20 @@ MALICIOUS_PATTERNS = [
     # Common web application attack patterns
     b"admin'--", b"' OR 1=1 --", b"' OR 'x'='x", b"' OR 'a'='a", b"'='", b"' AND 'a'='a"
 ]
+
+# ========== ML Configuration ==========
+
+# Enable/disable ML-based detection (requires trained model)
+ML_ENABLED = True
+
+# Path to trained Isolation Forest model (relative to project root)
+ML_MODEL_PATH = 'models/isolation_forest_v1.joblib'
+ML_SCALER_PATH = 'models/scaler_v1.joblib'
+
+# Minimum packets before running ML inference
+MIN_PACKETS_FOR_ML = 10
+
+# Anomaly score threshold for ML alerts
+# Isolation Forest scores are typically in range [-0.5, 0.5]
+# Lower scores indicate anomalies
+ML_ANOMALY_THRESHOLD = -0.1

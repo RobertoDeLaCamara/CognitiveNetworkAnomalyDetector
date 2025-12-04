@@ -1,2 +1,52 @@
+# IDE/Editor settings
 .vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# Logs
+*.log
+ml_anomaly_detection.log
 anomaly_detection.log
+
+# ML Models and Training Data
+models/*.joblib
+models/*.pkl
+data/training/*.csv
+data/test/*.csv
+
+# Keep directory structure
+!models/.gitkeep
+!data/training/.gitkeep
+!data/test/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
