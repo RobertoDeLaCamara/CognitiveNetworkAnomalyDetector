@@ -210,10 +210,18 @@ class FeatureExtractor:
         packets_per_second = history.total_packets / session_duration
         bytes_per_second = history.total_bytes / session_duration
         
-        # Packet size statistics
-        packet_sizes = list(history.packet_sizes)
-        avg_packet_size = np.mean(packet_sizes) if packet_sizes else 0.0
-        packet_size_variance = np.var(packet_sizes) if len(packet_sizes) > 1 else 0.0
+        # Packet size statistics (avoid list conversion)
+        if len(history.packet_sizes) == 0:
+            avg_packet_size = 0.0
+            packet_size_variance = 0.0
+        elif len(history.packet_sizes) == 1:
+            avg_packet_size = float(history.packet_sizes[0])
+            packet_size_variance = 0.0
+        else:
+            # Use numpy array for efficient calculation
+            sizes_array = np.array(history.packet_sizes)
+            avg_packet_size = np.mean(sizes_array)
+            packet_size_variance = np.var(sizes_array)
         
         return [
             packets_per_second,
@@ -229,20 +237,19 @@ class FeatureExtractor:
         current_time = time.time()
         session_duration = current_time - history.first_seen
         
-        # Calculate inter-arrival times
-        timestamps = list(history.timestamps)
-        inter_arrivals = []
-        for i in range(1, len(timestamps)):
-            inter_arrivals.append(timestamps[i] - timestamps[i-1])
-        
-        if inter_arrivals:
-            inter_arrival_mean = np.mean(inter_arrivals)
-            inter_arrival_std = np.std(inter_arrivals) if len(inter_arrivals) > 1 else 0.0
-        else:
+        # Calculate inter-arrival times efficiently without list conversion
+        timestamps = history.timestamps
+        if len(timestamps) < 2:
             inter_arrival_mean = 0.0
             inter_arrival_std = 0.0
+        else:
+            # Use numpy for efficient calculation
+            ts_array = np.array(timestamps)
+            inter_arrivals = np.diff(ts_array)
+            inter_arrival_mean = np.mean(inter_arrivals)
+            inter_arrival_std = np.std(inter_arrivals) if len(inter_arrivals) > 1 else 0.0
         
-        # Burst rate: packets in last 5 seconds
+        # Burst rate: packets in last 5 seconds (efficient counting)
         recent_threshold = current_time - 5.0
         recent_packets = sum(1 for ts in timestamps if ts > recent_threshold)
         burst_rate = recent_packets / 5.0
@@ -269,31 +276,38 @@ class FeatureExtractor:
     
     def _extract_port_features(self, history: PacketHistory) -> List[float]:
         """Extract port features (2 features)."""
-        ports = [p for p in history.ports if p is not None]
+        # Filter None values efficiently
+        valid_ports = [p for p in history.ports if p is not None]
         
-        if not ports:
+        if not valid_ports:
             return [0.0, 0.0]
         
-        # Unique ports contacted
-        unique_ports = len(set(ports))
+        # Use set operations for efficiency
+        port_set = set(valid_ports)
+        unique_ports = len(port_set)
         
-        # Uncommon port ratio
-        uncommon_count = sum(1 for p in ports if p not in COMMON_PORTS)
-        uncommon_port_ratio = uncommon_count / len(ports)
+        # Calculate uncommon port ratio using set intersection
+        common_ports_set = set(COMMON_PORTS)
+        uncommon_ports = port_set - common_ports_set
+        uncommon_count = sum(1 for p in valid_ports if p in uncommon_ports)
+        uncommon_port_ratio = uncommon_count / len(valid_ports)
         
         return [float(unique_ports), uncommon_port_ratio]
     
     def _extract_payload_features(self, history: PacketHistory) -> List[float]:
         """Extract payload features (3 features)."""
-        payload_sizes = [s for s in history.payload_sizes if s > 0]
-        payload_entropies = [e for e in history.payload_entropies if e > 0]
+        # Use numpy arrays for efficient filtering and calculation
+        sizes_array = np.array(history.payload_sizes)
+        entropies_array = np.array(history.payload_entropies)
         
-        # Average payload entropy
-        avg_entropy = np.mean(payload_entropies) if payload_entropies else 0.0
+        # Filter non-zero values efficiently
+        nonzero_sizes = sizes_array[sizes_array > 0]
+        nonzero_entropies = entropies_array[entropies_array > 0]
         
-        # Payload size statistics
-        avg_payload_size = np.mean(payload_sizes) if payload_sizes else 0.0
-        payload_size_variance = np.var(payload_sizes) if len(payload_sizes) > 1 else 0.0
+        # Calculate statistics
+        avg_entropy = np.mean(nonzero_entropies) if len(nonzero_entropies) > 0 else 0.0
+        avg_payload_size = np.mean(nonzero_sizes) if len(nonzero_sizes) > 0 else 0.0
+        payload_size_variance = np.var(nonzero_sizes) if len(nonzero_sizes) > 1 else 0.0
         
         return [avg_entropy, avg_payload_size, payload_size_variance]
     
