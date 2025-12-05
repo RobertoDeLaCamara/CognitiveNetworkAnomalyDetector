@@ -91,7 +91,14 @@ class PacketHistory:
     
     @staticmethod
     def _calculate_entropy(data: bytes) -> float:
-        """Calculate Shannon entropy of byte data."""
+        """Calculate Shannon entropy of byte data.
+        
+        Args:
+            data: Byte sequence to calculate entropy for
+        
+        Returns:
+            Shannon entropy value (0-8 for byte data)
+        """
         if len(data) == 0:
             return 0.0
         
@@ -100,12 +107,14 @@ class PacketHistory:
         for byte in data:
             byte_counts[byte] += 1
         
-        # Calculate entropy
+        # Calculate entropy with safety check for log(0)
         entropy = 0.0
         data_len = len(data)
         for count in byte_counts.values():
             probability = count / data_len
-            entropy -= probability * math.log2(probability)
+            # Avoid log(0) by checking probability > 0
+            if probability > 0:
+                entropy -= probability * math.log2(probability)
         
         return entropy
 
