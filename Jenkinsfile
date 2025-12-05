@@ -1,39 +1,146 @@
 pipeline {
     agent any
-
+    
+    environment {
+        // Python version
+        PYTHON = 'python3'
+        // Virtual environment directory
+        VENV_DIR = 'venv'
+    }
+    
     stages {
         stage('Checkout') {
             steps {
-                // Checkout the source code from the Git repository
-                git branch: 'master', url: 'https://github.com/RobertoDeLaCamara/DetectorAnomalias.git'
+                echo 'Checking out code...'
+                checkout scm
             }
         }
-
-        stage('Build Docker Image') {
+        
+        stage('Setup Environment') {
             steps {
-                // Build the Docker image
-                script {
-                    sh 'docker build -t anomaly-detector-app .'
+                echo 'Setting up Python virtual environment...'
+                sh '''
+                    # Create virtual environment if it doesn't exist
+                    if [ ! -d "$VENV_DIR" ]; then
+                        $PYTHON -m venv $VENV_DIR
+                    fi
+                    
+                    # Activate and upgrade pip
+                    . $VENV_DIR/bin/activate
+                    pip install --upgrade pip
+                    
+                    # Install dependencies
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+        
+        stage('Code Quality Checks') {
+            parallel {
+                stage('Lint') {
+                    steps {
+                        echo 'Running code quality checks...'
+                        sh '''
+                            . $VENV_DIR/bin/activate
+                            # Optional: Add linting if you have flake8 or pylint
+                            # pip install flake8
+                            # flake8 src/ --max-line-length=120 --exclude=venv
+                            echo "Linting skipped - add linter to requirements if needed"
+                        '''
+                    }
+                }
+                
+                stage('Security Checks') {
+                    steps {
+                        echo 'Checking for security vulnerabilities...'
+                        sh '''
+                            . $VENV_DIR/bin/activate
+                            # Optional: Add safety check
+                            # pip install safety
+                            # safety check -r requirements.txt --json
+                            echo "Security checks skipped - add safety to requirements if needed"
+                        '''
+                    }
                 }
             }
         }
-
+        
         stage('Run Tests') {
             steps {
-                // Run tests inside the Docker container
-                script {
-                    sh 'docker run --rm anomaly-detector-app python -m pytest'
-                }
+                echo 'Running test suite...'
+                sh '''
+                    . $VENV_DIR/bin/activate
+                    
+                    # Run tests with coverage
+                    pytest tests/ -v \
+                        --junitxml=test-results/junit.xml \
+                        --cov=src \
+                        --cov-report=xml:coverage.xml \
+                        --cov-report=html:htmlcov \
+                        --cov-report=term-missing
+                '''
+            }
+        }
+        
+        stage('Test Coverage Report') {
+            steps {
+                echo 'Generating coverage report...'
+                sh '''
+                    . $VENV_DIR/bin/activate
+                    
+                    # Display coverage summary
+                    coverage report
+                    
+                    # Check minimum coverage threshold (85%)
+                    coverage report --fail-under=85 || {
+                        echo "WARNING: Test coverage is below 85%"
+                        # Don't fail the build, just warn
+                    }
+                '''
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                echo 'Archiving test results and coverage reports...'
+                // Archive test results
+                junit 'test-results/junit.xml'
+                
+                // Archive coverage reports
+                publishHTML(target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'htmlcov',
+                    reportFiles: 'index.html',
+                    reportName: 'Coverage Report'
+                ])
+                
+                // Archive coverage XML for other tools
+                archiveArtifacts artifacts: 'coverage.xml', fingerprint: true
             }
         }
     }
-
+    
     post {
         always {
-            // Clean up Docker images
-            script {
-                sh 'docker rmi anomaly-detector-app || true'
-            }
+            echo 'Cleaning up...'
+            // Clean up test results directory for next run
+            sh 'mkdir -p test-results'
+        }
+        
+        success {
+            echo '✅ Build succeeded! All tests passed.'
+            // Optional: Send notification
+        }
+        
+        failure {
+            echo '❌ Build failed! Check test results.'
+            // Optional: Send notification
+        }
+        
+        unstable {
+            echo '⚠️ Build unstable! Some tests may have failed.'
         }
     }
 }

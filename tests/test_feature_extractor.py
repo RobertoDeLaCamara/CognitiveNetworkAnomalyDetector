@@ -25,18 +25,20 @@ class TestPacketHistory:
     
     def test_entropy_calculation(self):
         """Test Shannon entropy calculation."""
+        from src.utils import calculate_entropy
+        
         # Uniform distribution (max entropy)
         uniform_data = bytes(range(256))
-        entropy = PacketHistory._calculate_entropy(uniform_data)
+        entropy = calculate_entropy(uniform_data)
         assert entropy == pytest.approx(8.0, abs=0.1)  # ~8 bits for uniform
         
         # All same byte (min entropy)
         uniform_byte = b'A' * 100
-        entropy = PacketHistory._calculate_entropy(uniform_byte)
+        entropy = calculate_entropy(uniform_byte)
         assert entropy == 0.0
         
         # Empty data
-        entropy = PacketHistory._calculate_entropy(b'')
+        entropy = calculate_entropy(b'')
         assert entropy == 0.0
 
 

@@ -7,9 +7,12 @@ anomalies in real-time.
 
 import os
 import joblib
+import warnings
+from datetime import datetime
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict, List, Any
 from sklearn.ensemble import IsolationForest
+import sklearn
 from sklearn.preprocessing import StandardScaler
 
 from .ml_config import (
@@ -180,7 +183,7 @@ class IsolationForestDetector:
         return predictions, anomaly_scores
     
     def save(self, model_path: Optional[str] = None, scaler_path: Optional[str] = None):
-        """Save the trained model and scaler to disk.
+        """Save the trained model and scaler to disk with metadata.
         
         Args:
             model_path: Path to save model (default: from ml_config)
@@ -190,36 +193,49 @@ class IsolationForestDetector:
             RuntimeError: If model is not trained
         """
         if not self.is_trained:
-            raise RuntimeError("Cannot save untrained model")
+            raise RuntimeError("Model must be trained before saving")
         
-        model_path = model_path or ISOLATION_FOREST_MODEL_PATH
-        scaler_path = scaler_path or SCALER_MODEL_PATH
+        # Use default paths if not specified
+        if model_path is None:
+            model_path = ISOLATION_FOREST_MODEL_PATH
+        if scaler_path is None:
+            scaler_path = SCALER_MODEL_PATH
         
-        # Create model directory if it doesn't exist
+        # Ensure model directory exists
         os.makedirs(MODEL_DIR, exist_ok=True)
         
-        # Save model and scaler
-        joblib.dump(self.model, model_path)
-        joblib.dump(self.scaler, scaler_path)
-        
-        # Save metadata
-        metadata = {
-            'contamination': self.contamination,
-            'n_estimators': self.n_estimators,
-            'random_state': self.random_state,
-            'max_samples': self.max_samples,
-            'feature_names': self.feature_names,
-            'n_features': N_FEATURES
-        }
-        metadata_path = model_path.replace('.joblib', '_metadata.joblib')
-        joblib.dump(metadata, metadata_path)
-        
-        logger.info(f"Model saved to {model_path}")
-        logger.info(f"Scaler saved to {scaler_path}")
-        logger.info(f"Metadata saved to {metadata_path}")
+        try:
+            # Create metadata
+            metadata = {
+                'version': 1,  # Model format version
+                'training_date': datetime.now().isoformat(),
+                'sklearn_version': sklearn.__version__,
+                'n_features': N_FEATURES,
+                'contamination': self.contamination,
+                'n_estimators': self.n_estimators,
+                'random_state': self.random_state,
+                'max_samples': self.max_samples,
+                'feature_names': self.feature_names if hasattr(self, 'feature_names') else None
+            }
+            
+            # Save model with metadata
+            model_data = {
+                'model': self.model,
+                'metadata': metadata
+            }
+            joblib.dump(model_data, model_path)
+            joblib.dump(self.scaler, scaler_path)
+            
+            logger.info(f"Model saved to {model_path} with metadata")
+            logger.info(f"Scaler saved to {scaler_path}")
+            logger.info(f"Model version: {metadata['version']}, sklearn: {metadata['sklearn_version']}")
+            
+        except Exception as e:
+            logger.error(f"Failed to save model: {e}")
+            raise
     
     def load(self, model_path: Optional[str] = None, scaler_path: Optional[str] = None):
-        """Load a trained model and scaler from disk.
+        """Load a trained model and scaler from disk with metadata validation.
         
         Args:
             model_path: Path to load model from (default: from ml_config)
@@ -227,30 +243,116 @@ class IsolationForestDetector:
         
         Raises:
             FileNotFoundError: If model or scaler files don't exist
+            ValueError: If model is incompatible with current configuration
         """
-        model_path = model_path or ISOLATION_FOREST_MODEL_PATH
-        scaler_path = scaler_path or SCALER_MODEL_PATH
+        # Use default paths if not specified
+        if model_path is None:
+            model_path = ISOLATION_FOREST_MODEL_PATH
+        if scaler_path is None:
+            scaler_path = SCALER_MODEL_PATH
         
+        # Check if files exist
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found: {model_path}")
         if not os.path.exists(scaler_path):
             raise FileNotFoundError(f"Scaler file not found: {scaler_path}")
         
-        # Load model and scaler
-        self.model = joblib.load(model_path)
-        self.scaler = joblib.load(scaler_path)
-        self.is_trained = True
+        try:
+            # Load model data
+            model_data = joblib.load(model_path)
+            self.scaler = joblib.load(scaler_path)
+            
+            # Handle both old format (direct model) and new format (with metadata)
+            if isinstance(model_data, dict) and 'model' in model_data:
+                # New format with metadata
+                self.model = model_data['model']
+                metadata = model_data.get('metadata', {})
+                
+                # Validate metadata
+                validation_issues = self._validate_model_metadata(metadata)
+                
+                # Log warnings for non-critical issues
+                for issue in validation_issues:
+                    if 'CRITICAL' in issue:
+                        raise ValueError(issue)
+                    else:
+                        warnings.warn(issue)
+                        logger.warning(issue)
+                
+                # Update detector's attributes from metadata if available
+                self.contamination = metadata.get('contamination', self.contamination)
+                self.n_estimators = metadata.get('n_estimators', self.n_estimators)
+                self.random_state = metadata.get('random_state', self.random_state)
+                self.max_samples = metadata.get('max_samples', self.max_samples)
+                self.feature_names = metadata.get('feature_names', self.feature_names)
+                
+                logger.info(f"Model loaded with metadata: version={metadata.get('version', 'unknown')}")
+                logger.info(f"Training date: {metadata.get('training_date', 'unknown')}")
+            else:
+                # Old format without metadata
+                self.model = model_data
+                warnings.warn("Loaded model without metadata. This is an older model format.")
+                logger.warning("Model loaded without metadata (old format)")
+            
+            self.is_trained = True
+            logger.info(f"Model loaded from {model_path}")
+            logger.info(f"Scaler loaded from {scaler_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            raise
+    
+    def _validate_model_metadata(self, metadata: Dict[str, Any]) -> List[str]:
+        """Validate model metadata for compatibility.
         
-        # Load metadata if available
-        metadata_path = model_path.replace('.joblib', '_metadata.joblib')
-        if os.path.exists(metadata_path):
-            metadata = joblib.load(metadata_path)
-            self.contamination = metadata.get('contamination', self.contamination)
-            self.n_estimators = metadata.get('n_estimators', self.n_estimators)
-            self.feature_names = metadata.get('feature_names')
+        Args:
+            metadata: Metadata dictionary from saved model
         
-        logger.info(f"Model loaded from {model_path}")
-        logger.info(f"Scaler loaded from {scaler_path}")
+        Returns:
+            List of validation issues (warnings or critical errors)
+        """
+        issues = []
+        
+        if not metadata:
+            issues.append("No metadata found in model file")
+            return issues
+        
+        # Check feature count (CRITICAL)
+        if 'n_features' in metadata:
+            if metadata['n_features'] != N_FEATURES:
+                issues.append(
+                    f"CRITICAL: Model was trained with {metadata['n_features']} features, "
+                    f"but current config expects {N_FEATURES} features"
+                )
+        
+        # Check sklearn version compatibility
+        if 'sklearn_version' in metadata:
+            saved_version = metadata['sklearn_version']
+            current_version = sklearn.__version__
+            
+            # Compare major versions
+            saved_major = saved_version.split('.')[0]
+            current_major = current_version.split('.')[0]
+            
+            if saved_major != current_major:
+                issues.append(
+                    f"sklearn major version mismatch: model trained with {saved_version}, "
+                    f"current version is {current_version}. Consider retraining."
+                )
+        
+        # Info about model age
+        if 'training_date' in metadata:
+            try:
+                training_date = datetime.fromisoformat(metadata['training_date'])
+                age_days = (datetime.now() - training_date).days
+                if age_days > 30:
+                    issues.append(
+                        f"Model is {age_days} days old. Consider retraining with recent data."
+                    )
+            except (ValueError, TypeError):
+                pass
+        
+        return issues
     
     def get_feature_importance(self) -> Optional[np.ndarray]:
         """Get feature importance scores (not directly available in Isolation Forest).

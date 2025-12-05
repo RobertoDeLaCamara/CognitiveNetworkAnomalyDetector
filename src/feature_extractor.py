@@ -10,7 +10,6 @@ machine learning-based anomaly detection. Features are categorized into:
 """
 
 import time
-import math
 import numpy as np
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -24,6 +23,7 @@ from .ml_config import (
     N_FEATURES,
     COMMON_PORTS
 )
+from .utils import calculate_entropy
 
 
 @dataclass
@@ -81,42 +81,13 @@ class PacketHistory:
         if Raw in packet:
             payload = packet[Raw].load
             payload_size = len(payload)
-            entropy = self._calculate_entropy(payload)
+            entropy = calculate_entropy(payload)
         else:
             payload_size = 0
             entropy = 0.0
         
         self.payload_sizes.append(payload_size)
         self.payload_entropies.append(entropy)
-    
-    @staticmethod
-    def _calculate_entropy(data: bytes) -> float:
-        """Calculate Shannon entropy of byte data.
-        
-        Args:
-            data: Byte sequence to calculate entropy for
-        
-        Returns:
-            Shannon entropy value (0-8 for byte data)
-        """
-        if len(data) == 0:
-            return 0.0
-        
-        # Count byte frequencies
-        byte_counts = defaultdict(int)
-        for byte in data:
-            byte_counts[byte] += 1
-        
-        # Calculate entropy with safety check for log(0)
-        entropy = 0.0
-        data_len = len(data)
-        for count in byte_counts.values():
-            probability = count / data_len
-            # Avoid log(0) by checking probability > 0
-            if probability > 0:
-                entropy -= probability * math.log2(probability)
-        
-        return entropy
 
 
 class FeatureExtractor:
