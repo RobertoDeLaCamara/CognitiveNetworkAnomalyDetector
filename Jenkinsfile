@@ -2,7 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.11-slim'
-            label 'docker'  // Nombre de tu Docker installation en Global Tool Config
+            //label 'docker'  // Nombre de tu Docker installation en Global Tool Config
             args '-u root --network=host -v /var/run/docker.sock:/var/run/docker.sock:/var/run/docker.sock'
         }
     }
