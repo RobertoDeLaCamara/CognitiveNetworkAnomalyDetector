@@ -1,11 +1,18 @@
 pipeline {
     agent any
     
+    tools {
+        // Usar Python configurado en Jenkins (opcional, comentar si Python está en PATH)
+        // python 'Python3'
+    }
+    
     environment {
-        // Python version (ya incluido en la imagen Docker)
+        // Python command - intentará usar python3, python, o la versión configurada en tools
         PYTHON = 'python3'
         // Virtual environment directory
         VENV_DIR = 'venv'
+        // PATH con python agregado
+        PATH = "${env.PATH}:/usr/bin:/usr/local/bin"
     }
     
     stages {
@@ -20,8 +27,22 @@ pipeline {
             steps {
                 echo 'Setting up Python virtual environment...'
                 sh '''
+                    # Detectar comando Python disponible
+                    if command -v python3 &> /dev/null; then
+                        PYTHON_CMD=python3
+                    elif command -v python &> /dev/null; then
+                        PYTHON_CMD=python
+                    else
+                        echo "ERROR: Python no está instalado en el servidor Jenkins"
+                        echo "Por favor, instala Python 3.8+ en el servidor Jenkins"
+                        exit 1
+                    fi
+                    
+                    echo "Usando Python: $PYTHON_CMD"
+                    $PYTHON_CMD --version
+                    
                     # Crear venv y activar
-                    python3 -m venv $VENV_DIR
+                    $PYTHON_CMD -m venv $VENV_DIR
                     . $VENV_DIR/bin/activate
                     
                     # Actualizar pip e instalar dependencias

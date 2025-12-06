@@ -6,8 +6,90 @@ Este documento describe los pasos necesarios para configurar SonarQube en Jenkin
 
 1. **Jenkins** instalado y ejecutándose
 2. **SonarQube Server** instalado y ejecutándose (puede estar en el mismo servidor o en uno diferente)
-3. **Python 3** instalado en el servidor Jenkins
+3. **Python 3** instalado en el servidor Jenkins ⚠️ **CRÍTICO**
 4. **SonarQube Scanner** instalado en el servidor Jenkins
+
+## Paso 0: Instalar Python en el Servidor Jenkins (OBLIGATORIO)
+
+> [!IMPORTANT]
+> Si Jenkins está ejecutándose en un contenedor Docker, necesitas instalar Python dentro del contenedor.
+
+### Opción A: Script Automático (Recomendado)
+
+Usa el script proporcionado `install-python-jenkins.sh`:
+
+```bash
+# Si Jenkins está en Docker, accede al contenedor
+docker exec -it -u root <nombre-contenedor-jenkins> bash
+
+# Dentro del contenedor, ejecuta:
+cd /var/jenkins_home/workspace/cognitive-anomaly-detector
+bash install-python-jenkins.sh
+```
+
+### Opción B: Instalación Manual
+
+```bash
+# Acceder al contenedor de Jenkins (si aplica)
+docker exec -it -u root <nombre-contenedor-jenkins> bash
+
+# Actualizar repositorios
+apt-get update
+
+# Instalar Python 3 y herramientas necesarias
+apt-get install -y python3 python3-pip python3-venv python3-dev build-essential
+
+# Verificar instalación
+python3 --version
+pip3 --version
+```
+
+### Opción C: Usar una Imagen Custom de Jenkins
+
+Crea un `Dockerfile` personalizado basado en Jenkins:
+
+```dockerfile
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Instalar Python 3
+RUN apt-get update && \
+    apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+USER jenkins
+```
+
+Luego construye y ejecuta:
+
+```bash
+docker build -t jenkins-python .
+docker run -d -p 8080:8080 -p 50000:50000 jenkins-python
+```
+
+### Verificar Python en Jenkins
+
+Para verificar que Python está disponible, ejecuta un pipeline de prueba:
+
+```groovy
+pipeline {
+    agent any
+    stages {
+        stage('Test Python') {
+            steps {
+                sh 'python3 --version'
+                sh 'pip3 --version'
+            }
+        }
+    }
+}
+```
 
 ## Paso 1: Instalar SonarQube Scanner en el Servidor Jenkins
 
