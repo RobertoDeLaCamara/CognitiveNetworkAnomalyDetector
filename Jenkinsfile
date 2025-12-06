@@ -1,11 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11-slim'
-            //label 'docker'  // Nombre de tu Docker installation en Global Tool Config
-            args '-u root --network=host -v /var/run/docker.sock:/var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
     
     environment {
         // Python version (ya incluido en la imagen Docker)
@@ -98,6 +92,48 @@ pipeline {
                         echo "WARNING: Test coverage is below 85%"
                     }
                 '''
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    // Definir el scanner de SonarQube configurado en Jenkins
+                    def scannerHome = tool 'SonarQube Scanner'
+                    
+                    // Ejecutar análisis de SonarQube
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=cognitive-anomaly-detector \
+                            -Dsonar.projectName='Cognitive Anomaly Detector' \
+                            -Dsonar.projectVersion=1.0 \
+                            -Dsonar.sources=src \
+                            -Dsonar.tests=tests \
+                            -Dsonar.python.coverage.reportPaths=coverage.xml \
+                            -Dsonar.python.xunit.reportPath=test-results/junit.xml \
+                            -Dsonar.exclusions=venv/**,htmlcov/**,*.pyc,__pycache__/**
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                script {
+                    // Esperar el resultado del Quality Gate de SonarQube
+                    timeout(time: 5, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            echo "WARNING: Quality Gate failed: ${qg.status}"
+                            // No falla el build, solo advierte
+                            unstable("Quality Gate failed")
+                        } else {
+                            echo "✅ Quality Gate passed!"
+                        }
+                    }
+                }
             }
         }
         
