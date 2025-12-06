@@ -16,24 +16,30 @@ pipeline {
             }
         }
         
+        
         stage('Setup Environment') {
             steps {
                 echo 'Setting up Python virtual environment...'
-                sh '''
-                    # Create virtual environment if it doesn't exist
-                    if [ ! -d "$VENV_DIR" ]; then
-                        $PYTHON -m venv $VENV_DIR
+                script {
+                    // Instala Python3 si no existe
+                    sh '''
+                        if ! command -v python3 &> /dev/null; then
+                    if command -v apt-get &> /dev/null; then
+                        apt-get update && apt-get install -y python3 python3-venv python3-pip
+                    elif command -v apk &> /dev/null; then
+                        apk add python3 py3-pip py3-virtualenv
                     fi
-                    
-                    # Activate and upgrade pip
-                    . $VENV_DIR/bin/activate
-                    pip install --upgrade pip
-                    
-                    # Install dependencies
-                    pip install -r requirements.txt
-                '''
-            }
-        }
+                fi
+                
+                [ ! -d venv ] && python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+            '''
+                }
+    }
+}
+
         
         stage('Code Quality Checks') {
             parallel {
