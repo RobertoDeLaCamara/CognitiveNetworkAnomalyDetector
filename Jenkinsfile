@@ -1,8 +1,14 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.11-slim'
+            label 'docker'  // Nombre de tu Docker installation en Global Tool Config
+            args '-u root --network=host -v /var/run/docker.sock:/var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
     
     environment {
-        // Python version
+        // Python version (ya incluido en la imagen Docker)
         PYTHON = 'python3'
         // Virtual environment directory
         VENV_DIR = 'venv'
@@ -16,30 +22,23 @@ pipeline {
             }
         }
         
-        
         stage('Setup Environment') {
             steps {
                 echo 'Setting up Python virtual environment...'
-                script {
-                    // Instala Python3 si no existe
-                    sh '''
-                        if ! command -v python3 &> /dev/null; then
-                    if command -v apt-get &> /dev/null; then
-                        apt-get update && apt-get install -y python3 python3-venv python3-pip
-                    elif command -v apk &> /dev/null; then
-                        apk add python3 py3-pip py3-virtualenv
-                    fi
-                fi
-                
-                [ ! -d venv ] && python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-            '''
-                }
-    }
-}
-
+                sh '''
+                    # Crear venv y activar
+                    python3 -m venv $VENV_DIR
+                    . $VENV_DIR/bin/activate
+                    
+                    # Actualizar pip e instalar dependencias
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    
+                    # Instalar herramientas de testing/coverage
+                    pip install pytest pytest-cov coverage flake8 safety
+                '''
+            }
+        }
         
         stage('Code Quality Checks') {
             parallel {
@@ -48,10 +47,7 @@ pipeline {
                         echo 'Running code quality checks...'
                         sh '''
                             . $VENV_DIR/bin/activate
-                            # Optional: Add linting if you have flake8 or pylint
-                            # pip install flake8
-                            # flake8 src/ --max-line-length=120 --exclude=venv
-                            echo "Linting skipped - add linter to requirements if needed"
+                            flake8 src/ --max-line-length=120 --exclude=venv,$VENV_DIR || echo "Lint warnings found"
                         '''
                     }
                 }
@@ -61,10 +57,7 @@ pipeline {
                         echo 'Checking for security vulnerabilities...'
                         sh '''
                             . $VENV_DIR/bin/activate
-                            # Optional: Add safety check
-                            # pip install safety
-                            # safety check -r requirements.txt --json
-                            echo "Security checks skipped - add safety to requirements if needed"
+                            safety check -r requirements.txt --full-report || echo "Security warnings found"
                         '''
                     }
                 }
@@ -76,6 +69,9 @@ pipeline {
                 echo 'Running test suite...'
                 sh '''
                     . $VENV_DIR/bin/activate
+                    
+                    # Crear directorio de resultados
+                    mkdir -p test-results
                     
                     # Run tests with coverage
                     pytest tests/ -v \
@@ -100,7 +96,6 @@ pipeline {
                     # Check minimum coverage threshold (85%)
                     coverage report --fail-under=85 || {
                         echo "WARNING: Test coverage is below 85%"
-                        # Don't fail the build, just warn
                     }
                 '''
             }
@@ -131,18 +126,18 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
-            // Clean up test results directory for next run
-            sh 'mkdir -p test-results'
+            sh '''
+                mkdir -p test-results
+                rm -rf $VENV_DIR
+            '''
         }
         
         success {
             echo '✅ Build succeeded! All tests passed.'
-            // Optional: Send notification
         }
         
         failure {
             echo '❌ Build failed! Check test results.'
-            // Optional: Send notification
         }
         
         unstable {
