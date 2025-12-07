@@ -112,18 +112,6 @@ pipeline {
                 '''
             }
         }
-
-        
-        stage('Archive Artifacts') {
-            steps {
-                echo 'Archiving test results and coverage reports...'
-                // Archive test results
-                junit 'test-results/junit.xml'
-                
-                // Archive coverage reports (HTML and XML)
-                archiveArtifacts artifacts: 'coverage.xml,htmlcov/**/*', fingerprint: true, allowEmptyArchive: true
-            }
-        }
     }
     
     post {
