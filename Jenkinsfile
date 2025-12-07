@@ -116,22 +116,32 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    // Definir el scanner de SonarQube configurado en Jenkins
-                    def scannerHome = tool 'SonarScanner'
-                    
-                    // Ejecutar análisis de SonarQube
-                    withSonarQubeEnv('SonarQube') {
-                        sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=cognitive-anomaly-detector \
-                            -Dsonar.projectName='Cognitive Anomaly Detector' \
-                            -Dsonar.projectVersion=1.0 \
-                            -Dsonar.sources=src \
-                            -Dsonar.tests=tests \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml \
-                            -Dsonar.python.xunit.reportPath=test-results/junit.xml \
-                            -Dsonar.exclusions=venv/**,htmlcov/**,*.pyc,__pycache__/**
-                        """
+                    try {
+                        // Definir el scanner de SonarQube configurado en Jenkins
+                        // Nota: El nombre 'SonarQube Scanner' debe coincidir con el configurado en
+                        // Manage Jenkins > Global Tool Configuration > SonarQube Scanner
+                        def scannerHome = tool name: 'SonarQube Scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+                        
+                        // Ejecutar análisis de SonarQube
+                        // Nota: El nombre 'SonarQube' debe coincidir con el configurado en
+                        // Manage Jenkins > Configure System > SonarQube servers
+                        withSonarQubeEnv('SonarQube') {
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=cognitive-anomaly-detector \
+                                -Dsonar.projectName='Cognitive Anomaly Detector' \
+                                -Dsonar.projectVersion=1.0 \
+                                -Dsonar.sources=src \
+                                -Dsonar.tests=tests \
+                                -Dsonar.python.coverage.reportPaths=coverage.xml \
+                                -Dsonar.python.xunit.reportPath=test-results/junit.xml \
+                                -Dsonar.exclusions=venv/**,htmlcov/**,*.pyc,__pycache__/**
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️ SonarQube analysis skipped: ${e.message}"
+                        echo "Please configure SonarQube in Jenkins (see SONARQUBE_JENKINS_SETUP.md)"
+                        unstable("SonarQube not configured")
                     }
                 }
             }
@@ -140,16 +150,21 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 script {
-                    // Esperar el resultado del Quality Gate de SonarQube
-                    timeout(time: 5, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            echo "WARNING: Quality Gate failed: ${qg.status}"
-                            // No falla el build, solo advierte
-                            unstable("Quality Gate failed")
-                        } else {
-                            echo "✅ Quality Gate passed!"
+                    try {
+                        // Esperar el resultado del Quality Gate de SonarQube
+                        timeout(time: 5, unit: 'MINUTES') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                echo "WARNING: Quality Gate failed: ${qg.status}"
+                                // No falla el build, solo advierte
+                                unstable("Quality Gate failed")
+                            } else {
+                                echo "✅ Quality Gate passed!"
+                            }
                         }
+                    } catch (Exception e) {
+                        echo "⚠️ Quality Gate check skipped: ${e.message}"
+                        echo "This is expected if SonarQube analysis was skipped"
                     }
                 }
             }
