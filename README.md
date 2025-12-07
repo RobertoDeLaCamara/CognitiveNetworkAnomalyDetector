@@ -1,183 +1,354 @@
-# Anomaly Detector
+# Cognitive Anomaly Detector
 
-This project is a Python-based anomaly detector with both rule-based and **ML-based detection**. It analyzes network traffic to identify unusual patterns or outliers using:
-- **Rule-based detection**: Pattern matching, threshold monitoring, protocol analysis
-- **ML-based detection**: Isolation Forest algorithm for unsupervised anomaly detection
+A production-ready network anomaly detection system with **dual detection** (rule-based + ML-based) and **centralized experiment tracking** via MLflow.
 
 ## Features
 
-### Phase 1: ML-Enhanced Detection
-- ✅ **18-feature extraction pipeline**: Statistical, temporal, protocol, port, and payload features
-- ✅ **Isolation Forest model**: Unsupervised learning for anomaly detection
-- ✅ **Dual detection system**: ML and rule-based alerts work together
-- ✅ **Model training pipeline**: Collect baseline traffic and train custom models
-- ✅ **Comprehensive testing**: 20+ unit tests with >85% coverage
+### ✅ Phase 1: ML-Enhanced Detection (COMPLETED)
+- **18-feature extraction pipeline**: Statistical, temporal, protocol, port, and payload features
+- **Isolation Forest model**: Unsupervised learning for anomaly detection
+- **Dual detection system**: ML and rule-based alerts work together
+- **MLflow integration**: Experiment tracking and model registry
+- **Remote infrastructure**: MLflow server + MinIO S3 storage support
+- **Model versioning**: Track, compare, and manage model versions
+- **Comprehensive testing**: 36+ tests with high coverage
 
-## Installation
+### 🔬 MLflow Experiment Tracking
+- **Centralized tracking**: All experiments logged to remote MLflow server
+- **Artifact storage**: Models and training data stored in MinIO S3
+- **Model registry**: Version management and deployment tracking
+- **Team collaboration**: Shared experiment history and results
+- **Production ready**: Remote server setup for scalability
 
-### With Docker
+## Quick Start
 
-To build and run the application using Docker, use the following commands:
+### 1. Installation
 
 ```bash
-docker build -t anomaly_detector .
-docker run anomaly_detector
+# Clone repository
+git clone https://github.com/RobertoDeLaCamara/DetectorAnomalias.git
+cd cognitive-anomaly-detector
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Local Installation
+### 2. Configure Remote MLflow (Optional)
 
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/RobertoDeLaCamara/DetectorAnomalias.git
-    cd DetectorAnomalias
-    ```
-
-2.  Create a virtual environment and activate it:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-3.  Install the dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## ML Model Training
-
-Before using ML-based detection, you need to train a model on baseline **normal** traffic:
-
-### Option 1: Collect Live Traffic (Recommended)
+For centralized tracking with remote MLflow server:
 
 ```bash
-# Collect 60 seconds of normal traffic and train model
-sudo python3 train_model.py --duration 60 --contamination 0.01
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your credentials
+nano .env
 ```
 
-### Option 2: Train from Existing Data
+See [REMOTE_MLFLOW_SETUP.md](REMOTE_MLFLOW_SETUP.md) for detailed setup.
+
+### 3. Train Model
+
+**Option A: With Synthetic Data (fastest)**
+```bash
+# Generate synthetic training data
+python generate_synthetic_data.py
+
+# Train model (completes in seconds)
+python train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+```
+
+**Option B: With Live Traffic**
+```bash
+# Collect 60 seconds of real network traffic and train
+sudo python train_model.py --duration 60 --version 1
+```
+
+### 4. Run Detector
 
 ```bash
-# Train from pre-collected CSV data
-python3 train_model.py --from-file data/training/baseline_traffic.csv
+# Start anomaly detection with trained model
+sudo python main.py
+```
+
+## MLflow Integration
+
+### Local MLflow Setup
+
+```bash
+# Initialize MLflow
+python setup_mlflow.py
+
+# Train with local tracking
+python train_model.py --duration 60 --version 1
+
+# View MLflow UI
+mlflow ui --backend-store-uri file://$(pwd)/.mlflow/mlruns
+# Open: http://localhost:5000
+```
+
+### Remote MLflow Setup
+
+For team collaboration and production deployments:
+
+1. **Configure environment** (`.env`):
+   ```bash
+   MLFLOW_TRACKING_URI=http://your-mlflow-server:5050
+   MLFLOW_S3_ENDPOINT_URL=http://your-minio-server:9000
+   AWS_ACCESS_KEY_ID=your_key
+   AWS_SECRET_ACCESS_KEY=your_secret
+   ```
+
+2. **Test connection**:
+   ```bash
+   python test_mlflow_connection.py
+   ```
+
+3. **Train** (automatically uses remote):
+   ```bash
+   python train_model.py --duration 60 --version 1
+   ```
+
+4. **View results**:
+   - MLflow UI: Your configured tracking URI
+   - MinIO: Your configured S3 endpoint
+
+## Training Options
+
+```bash
+# Basic training
+python train_model.py --duration 60 --version 1
+
+# Custom experiment tracking
+python train_model.py --duration 60 \
+  --experiment-name "production-v1" \
+  --run-name "baseline-model" \
+  --version 1
+
+# From pre-collected data
+python train_model.py --from-file data/training/baseline.csv --version 2
+
+# Disable MLflow for a run
+python train_model.py --duration 60 --no-mlflow
 ```
 
 ### Training Parameters
 
-- `--duration N`: Collect baseline traffic for N seconds (requires root/sudo)
-- `--contamination X`: Expected anomaly proportion (default: 0.01 = 1%)
-- `--version V`: Model version number (default: 1)
-- `--from-file PATH`: Load training data from CSV file
-- `--no-save-data`: Don't save collected training data
-- `--interface IFACE`: Network interface to monitor (default: all)
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `--duration N` | Collect traffic for N seconds | `--duration 300` |
+| `--from-file PATH` | Train from CSV file | `--from-file data/baseline.csv` |
+| `--contamination X` | Expected anomaly rate | `--contamination 0.01` |
+| `--version V` | Model version number | `--version 2` |
+| `--experiment-name` | MLflow experiment name | `--experiment-name prod` |
+| `--run-name` | MLflow run name | `--run-name test-1` |
+| `--no-mlflow` | Disable MLflow tracking | `--no-mlflow` |
 
-## Usage
+## Detection Usage
 
-### Run Anomaly Detection
-
-To run the anomaly detector with ML detection:
+### Start Monitoring
 
 ```bash
-# Run with default settings (60 seconds monitoring)
-sudo python3 main.py
+# Monitor with ML model (default 60s)
+sudo python main.py
+
+# Monitor for custom duration
+sudo python main.py --duration 120
 ```
 
-The detector will:
-1. Load the trained ML model (if available)
-2. Monitor network traffic
-3. Extract features from packets
-4. Run both rule-based and ML-based detection
-5. Log alerts for anomalies
+### Output Example
 
-### Configuration
+```
+Starting network monitoring...
+[INFO] ML detector loaded successfully (version 1)
+[ALERT] [ML] ML ANOMALY: 192.168.1.50 - Score: -0.234
+[ALERT] [RULE] Traffic spike from 192.168.1.100 - Rate: 45.2 pkt/s
+[ALERT] [RULE] Uncommon port 8888 from 192.168.1.75
 
-Edit `src/config.py` and `src/ml_config.py` to adjust:
-- **Rule-based thresholds**: `THRESHOLD_MULTIPLIER`, `ICMP_THRESHOLD`, etc.
-- **ML settings**: `ML_ENABLED`, `MIN_PACKETS_FOR_ML`, `ML_ANOMALY_THRESHOLD`
-- **Feature extraction**: `FEATURE_WINDOW_SIZE`, `CONTAMINATION`
+Traffic summary:
+IP: 192.168.1.45, Packets: 345
+IP: 142.250.110.81, Packets: 182
+```
 
-### Disable ML Detection
+## Configuration
 
+### ML Settings (`src/ml_config.py`)
 ```python
-# In src/config.py
-ML_ENABLED = False
+ML_ENABLED = True                    # Enable/disable ML detection
+MIN_PACKETS_FOR_ML = 10              # Min packets before ML inference
+ML_ANOMALY_THRESHOLD = -0.1          # Anomaly score threshold
+CONTAMINATION = 0.01                 # Expected anomaly rate (1%)
+N_ESTIMATORS = 100                   # Number of trees in forest
+```
+
+### Rule-Based Settings (`src/config.py`)
+```python
+THRESHOLD_MULTIPLIER = 2             # Traffic spike threshold  
+ICMP_THRESHOLD = 10                  # ICMP flood threshold
+LARGE_PAYLOAD_SIZE = 5000            # Large payload threshold
 ```
 
 ## Testing
-
-Run the comprehensive test suite:
 
 ```bash
 # Run all tests
 pytest tests/ -v
 
-# Run with coverage report
-pytest tests/ -v --cov=src --cov-report=html
+# With coverage report
+pytest tests/ --cov=src --cov-report=html
 
-# Run specific test file
-pytest tests/test_feature_extractor.py -v
-pytest tests/test_isolation_forest.py -v
+# MLflow integration tests
+pytest tests/test_mlflow_integration.py -v
+
+# Integration tests
+pytest tests/test_integration.py -v
 ```
 
 ## Project Structure
 
 ```
-cognitive-anomaly-detector-1/
+cognitive-anomaly-detector/
 ├── src/
-│   ├── anomaly_detector.py         # Main detection logic (rule + ML)
-│   ├── feature_extractor.py         # 18-feature extraction pipeline
-│   ├── isolation_forest_detector.py # Isolation Forest implementation
-│   ├── model_trainer.py             # Training workflow
-│   ├── ml_config.py                 # ML configuration
-│   ├── config.py                    # General configuration
-│   ├── payload_analyzer.py          # Pattern matching
-│   └── logger_setup.py              # Logging configuration
+│   ├── anomaly_detector.py         # Dual detection engine
+│   ├── feature_extractor.py        # 18-feature extraction
+│   ├── isolation_forest_detector.py # ML model implementation
+│   ├── model_trainer.py            # Training pipeline with MLflow
+│   ├── mlflow_config.py            # MLflow configuration
+│   ├── ml_config.py                # ML settings
+│   ├── config.py                   # General configuration
+│   ├── payload_analyzer.py         # Pattern matching
+│   └── logger_setup.py             # Logging setup
 ├── tests/
-│   ├── test_feature_extractor.py    # Feature extraction tests
-│   ├── test_isolation_forest.py     # ML model tests
-│   ├── test_anomaly_detector.py     # Integration tests
-│   └── test_payload_analyzer.py     # Pattern matching tests
-├── models/                          # Trained models (created after training)
-├── data/                            # Training data (created after collection)
-├── train_model.py                   # ML training script
-├── main.py                          # Main entry point
-└── requirements.txt                 # Dependencies
-
+│   ├── test_mlflow_integration.py  # MLflow tests (17 tests)
+│   ├── test_integration.py         # E2E tests (8 tests)
+│   ├── test_isolation_forest.py    # ML model tests (11 tests)
+│   ├── test_feature_extractor.py   # Feature tests
+│   └── test_payload_analyzer.py    # Pattern tests
+├── models/                          # Trained models (gitignored)
+├── data/                           # Training data (gitignored)
+├── .mlflow/                        # Local MLflow data (gitignored)
+├── train_model.py                  # Training CLI
+├── main.py                         # Detection entry point
+├── setup_mlflow.py                 # MLflow initialization
+├── test_mlflow_connection.py       # Connectivity test
+├── generate_synthetic_data.py      # Synthetic data generator
+├── .env.example                    # Environment template
+├── REMOTE_MLFLOW_SETUP.md          # Remote setup guide
+└── requirements.txt                # Dependencies
 ```
 
 ## How It Works
 
-### Rule-Based Detection
-- Traffic spikes (rate > 2x average)
+### Dual Detection System
+
+**1. Rule-Based Detection**
+- Traffic rate spikes (2x average)
 - ICMP flood detection
-- Uncommon port usage
+- Uncommon port monitoring
 - Large payload detection
-- Malicious pattern matching (SQL injection, XSS, etc.)
+- Malicious pattern matching (SQL injection, XSS, shell commands)
 
-### ML-Based Detection (Isolation Forest)
-1. **Feature Extraction**: Extract 18 features per IP:
-   - Statistical: packet/byte rates, sizes, variance
-   - Temporal: inter-arrival times, burst rates, session duration
-   - Protocol: TCP/UDP/ICMP ratios
-   - Port: unique ports, uncommon port ratio
-   - Payload: entropy, size statistics
+**2. ML-Based Detection (Isolation Forest)**
 
-2. **Anomaly Scoring**: Isolation Forest assigns anomaly scores
-   - Lower scores = more anomalous
-   - Threshold-based alerting
+**Feature Extraction** (18 features per IP):
+- **Statistical**: packet/byte rates, sizes, variance (6 features)
+- **Temporal**: inter-arrival times, burst rates, duration (4 features)
+- **Protocol**: TCP/UDP/ICMP ratios (3 features)
+- **Port**: unique ports, uncommon port ratio (2 features)
+- **Payload**: entropy, size statistics (3 features)
 
-3. **Dual Detection**: Both rule-based and ML alerts are logged separately
+**Anomaly Scoring**:
+- Isolation Forest assigns scores (-1 to 1)
+- Lower scores = more anomalous behavior
+- Threshold-based alerting (configurable)
 
-## Example Output
+**Model Lifecycle**:
+1. Train on baseline normal traffic
+2. Track experiments in MLflow
+3. Version models in registry
+4. Load for real-time detection
+5. Continuous monitoring and improvement
 
-```
-Starting local network monitoring for 60 seconds...
-[INFO] ML detector loaded successfully
-[ALERT] [ML] ML ANOMALY DETECTED: 192.168.1.50 - Anomaly score: -0.234
-[ALERT] [RULE] ALERT: Traffic spike from 192.168.1.100 - Rate: 45.2 packets/sec
-[ALERT] [RULE] ALERT: Malicious payload detected from 192.168.1.200
-```
+## MLflow Features
+
+### Experiment Tracking
+- **Parameters**: contamination, n_estimators, n_features
+- **Metrics**: training_time, anomaly_rate, score statistics
+- **Artifacts**: model files, training data, feature lists
+- **Tags**: project, model_type, framework
+
+### Model Registry
+- **Versioning**: Automatic version management
+- **Stages**: Development, Staging, Production
+- **Lineage**: Track model origins and training data
+- **Comparison**: Compare multiple model versions
+
+### Remote Infrastructure
+- **MLflow Server**: Centralized tracking and registry
+- **MinIO Storage**: S3-compatible object storage for artifacts
+- **Team Collaboration**: Shared experiment history
+- **Production Ready**: Scalable deployment
 
 ## Roadmap
 
-- ✅ Phase 1: Foundation & Isolation Forest (COMPLETED)
-- ⏳ Phase 2: LSTM Networks & Ensemble Learning
+- ✅ **Phase 1: Foundation** (COMPLETED)
+  - Isolation Forest implementation
+  - Feature extraction pipeline
+  - MLflow integration
+  - Remote server support
+  - Model versioning
+
+- ⏳ **Phase 2: Advanced Models**
+  - LSTM networks for sequential analysis
+  - Autoencoder for unsupervised detection
+  - Ensemble meta-learning
+  
+- 📋 **Phase 3: Production Features**
+  - Real-time dashboard
+  - Automated retraining
+  - A/B testing framework
+  - Alert management system
+
+## Documentation
+
+- [REMOTE_MLFLOW_SETUP.md](REMOTE_MLFLOW_SETUP.md) - Remote MLflow/MinIO setup
+- [INSTALL.md](INSTALL.md) - Detailed installation guide
+- [QUICKSTART.md](QUICKSTART.md) - Quick start guide
+- [AI_ML_Enhancement_Proposal.md](AI_ML_Enhancement_Proposal.md) - Full roadmap
+
+## Requirements
+
+- Python 3.8+
+- Root/sudo access (for packet capture)
+- Network interface access
+- Optional: Remote MLflow server + MinIO for team usage
+
+### Dependencies
+- `scapy>=2.5.0` - Packet capture
+- `scikit-learn>=1.3.0` - ML algorithms
+- `mlflow>=2.9.0` - Experiment tracking
+- `boto3>=1.28.0` - S3/MinIO storage
+- `numpy`, `pandas` - Data processing
+
+## License
+
+MIT License - See LICENSE file
+
+## Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new features
+4. Submit a pull request
+
+## Support
+
+For issues or questions:
+- GitHub Issues: [Report bugs or request features]
+- Documentation: See docs/ directory
+- MLflow UI: View experiment results and model versions
