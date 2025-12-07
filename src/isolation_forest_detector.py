@@ -27,6 +27,19 @@ from .ml_config import (
 )
 from .logger_setup import logger
 
+# MLflow imports (optional)
+try:
+    import mlflow
+    import mlflow.sklearn
+    from .mlflow_config import (
+        get_tracking_uri,
+        REGISTERED_MODEL_NAME,
+        MODEL_ARTIFACT_PATH
+    )
+    MLFLOW_AVAILABLE = True
+except ImportError:
+    MLFLOW_AVAILABLE = False
+
 
 class IsolationForestDetector:
     """Isolation Forest anomaly detector for network traffic."""
@@ -377,3 +390,127 @@ class IsolationForestDetector:
             'n_features': N_FEATURES,
             'feature_names': self.feature_names
         }
+    
+    def load_from_mlflow(
+        self, 
+        model_name: str = None,
+        version: Optional[int] = None,
+        stage: Optional[str] = None
+    ):
+        """Load model from MLflow Model Registry.
+        
+        Args:
+            model_name: Model name in registry (default: from config)
+            version: Specific version to load (e.g., 1, 2, 3)
+            stage: Model stage to load ('Staging', 'Production', etc.)
+                   If both version and stage are None, loads latest version
+        
+        Raises:
+            RuntimeError: If MLflow is not available
+            ValueError: If model cannot be loaded
+        
+        Examples:
+            # Load latest version
+            detector.load_from_mlflow()
+            
+            # Load specific version
+            detector.load_from_mlflow(version=2)
+            
+            # Load production model
+            detector.load_from_mlflow(stage='Production')
+        """
+        if not MLFLOW_AVAILABLE:
+            raise RuntimeError("MLflow is not installed. Install with: pip install mlflow")
+        
+        try:
+            mlflow.set_tracking_uri(get_tracking_uri())
+            
+            # Use default model name if not provided
+            if model_name is None:
+                model_name = REGISTERED_MODEL_NAME
+            
+            # Construct model URI
+            if version is not None:
+                model_uri = f"models:/{model_name}/{version}"
+                logger.info(f"Loading model {model_name} version {version} from MLflow")
+            elif stage is not None:
+                model_uri = f"models:/{model_name}/{stage}"
+                logger.info(f"Loading model {model_name} stage '{stage}' from MLflow")
+            else:
+                # Load latest version
+                model_uri = f"models:/{model_name}/latest"
+                logger.info(f"Loading latest version of {model_name} from MLflow")
+            
+            # Load the sklearn model
+            loaded_model = mlflow.sklearn.load_model(model_uri)
+            
+            # Update detector with loaded model
+            self.model = loaded_model
+            
+            # Note: MLflow sklearn models may not include the scaler
+            # We'll try to load it from the run artifacts if available
+            logger.warning(
+                "Loaded model from MLflow. Note: scaler may need to be loaded separately "
+                "using traditional load() method if not included in MLflow model."
+            )
+            
+            self.is_trained = True
+            logger.info(f"Model loaded successfully from MLflow: {model_uri}")
+            
+        except Exception as e:
+            logger.error(f"Failed to load model from MLflow: {e}")
+            raise ValueError(f"Could not load model from MLflow: {e}")
+    
+    def save_to_mlflow(
+        self,
+        experiment_name: str = 'cognitive-anomaly-detector',
+        run_name: Optional[str] = None,
+        register_model: bool = True
+    ) -> str:
+        """Save model to MLflow tracking server.
+        
+        Args:
+            experiment_name: MLflow experiment name
+            run_name: Optional run name
+            register_model: Whether to register model to Model Registry
+        
+        Returns:
+            MLflow run ID
+        
+        Raises:
+            RuntimeError: If MLflow is not available or model not trained
+        """
+        if not MLFLOW_AVAILABLE:
+            raise RuntimeError("MLflow is not installed. Install with: pip install mlflow")
+        
+        if not self.is_trained:
+            raise RuntimeError("Model must be trained before saving to MLflow")
+        
+        try:
+            mlflow.set_tracking_uri(get_tracking_uri())
+            mlflow.set_experiment(experiment_name)
+            
+            with mlflow.start_run(run_name=run_name) as run:
+                # Log model parameters
+                mlflow.log_param('contamination', self.contamination)
+                mlflow.log_param('n_estimators', self.n_estimators)
+                mlflow.log_param('random_state', self.random_state)
+                mlflow.log_param('max_samples', self.max_samples)
+                
+                # Log model
+                mlflow.sklearn.log_model(
+                    self.model,
+                    MODEL_ARTIFACT_PATH,
+                    registered_model_name=REGISTERED_MODEL_NAME if register_model else None
+                )
+                
+                logger.info(f"Model saved to MLflow run: {run.info.run_id}")
+                
+                if register_model:
+                    logger.info(f"Model registered as: {REGISTERED_MODEL_NAME}")
+                
+                return run.info.run_id
+                
+        except Exception as e:
+            logger.error(f"Failed to save model to MLflow: {e}")
+            raise

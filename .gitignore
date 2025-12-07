@@ -138,3 +138,13 @@ celerybeat.pid
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# MLflow experiment tracking and artifacts
+.mlflow/
+mlruns/
+mlartifacts/
+
+# Environment files with credentials
+.env
+
+

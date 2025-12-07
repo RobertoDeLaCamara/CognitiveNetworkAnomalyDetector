@@ -110,6 +110,25 @@ Examples:
         help='Network interface to monitor (default: all interfaces)'
     )
     
+    # MLflow options
+    parser.add_argument(
+        '--experiment-name',
+        type=str,
+        metavar='NAME',
+        help='MLflow experiment name (default: cognitive-anomaly-detector)'
+    )
+    parser.add_argument(
+        '--run-name',
+        type=str,
+        metavar='NAME',
+        help='MLflow run name (default: auto-generated)'
+    )
+    parser.add_argument(
+        '--no-mlflow',
+        action='store_true',
+        help='Disable MLflow tracking for this run'
+    )
+    
     try:
         args = parser.parse_args()
         validate_args(args)
@@ -122,7 +141,16 @@ Examples:
             print("Warning: Not running as root. Packet capture may be limited.")
             print("Consider running with sudo for full network access.")
         
-        trainer = ModelTrainer()
+        # Initialize trainer with MLflow configuration
+        enable_mlflow = not args.no_mlflow
+        trainer = ModelTrainer(enable_mlflow=enable_mlflow)
+        
+        if trainer.mlflow_enabled:
+            print(f"MLflow tracking enabled")
+            if args.experiment_name:
+                print(f"Experiment: {args.experiment_name}")
+            if args.run_name:
+                print(f"Run name: {args.run_name}")
         
         if args.duration:
             # Collect live traffic
@@ -179,7 +207,11 @@ Examples:
         print("Training Isolation Forest model...")
         
         try:
-            stats = trainer.train_model(contamination=args.contamination)
+            stats = trainer.train_model(
+                contamination=args.contamination,
+                experiment_name=args.experiment_name,
+                run_name=args.run_name
+            )
         except Exception as train_e:
             logger.error(f"Model training failed: {train_e}")
             print(f"\n❌ Model training failed: {train_e}")
@@ -211,6 +243,12 @@ Examples:
         print(f"\n✅ Model saved successfully (version {args.version})")
         print(f"   Model path: models/isolation_forest_v{args.version}.joblib")
         print(f"   Scaler path: models/scaler_v{args.version}.joblib")
+        
+        # Print MLflow info if enabled
+        if trainer.mlflow_enabled and 'mlflow_run_id' in stats:
+            print(f"   MLflow run ID: {stats['mlflow_run_id']}")
+            print(f"   View in MLflow UI: mlflow ui --backend-store-uri file://{os.getcwd()}/.mlflow/mlruns")
+        
         print("\nYou can now run the anomaly detector with ML detection enabled.")
         
         return 0
