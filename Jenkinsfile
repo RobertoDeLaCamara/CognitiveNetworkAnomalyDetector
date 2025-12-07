@@ -1,10 +1,7 @@
 pipeline {
     agent any
     
-    tools {
-        // Usar Python configurado en Jenkins (opcional, comentar si Python está en PATH)
-        // python 'Python3'
-    }
+    // The empty 'tools' block was removed here to fix the syntax error.
     
     environment {
         // Python command - intentará usar python3, python, o la versión configurada en tools
@@ -120,7 +117,7 @@ pipeline {
             steps {
                 script {
                     // Definir el scanner de SonarQube configurado en Jenkins
-                    def scannerHome = tool 'SonarQube Scanner'
+                    def scannerHome = tool 'SonarScanner'
                     
                     // Ejecutar análisis de SonarQube
                     withSonarQubeEnv('SonarQube') {
