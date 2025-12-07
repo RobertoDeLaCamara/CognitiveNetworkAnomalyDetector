@@ -178,17 +178,20 @@ def get_s3_config() -> dict:
     Returns:
         Dictionary with S3 configuration
     """
+    # Read environment variables at call time to capture any runtime changes
     config = {}
-    
-    if MINIO_ENDPOINT:
-        config['MLFLOW_S3_ENDPOINT_URL'] = MINIO_ENDPOINT
-    
-    if AWS_ACCESS_KEY_ID:
-        config['AWS_ACCESS_KEY_ID'] = AWS_ACCESS_KEY_ID
-    
-    if AWS_SECRET_ACCESS_KEY:
-        config['AWS_SECRET_ACCESS_KEY'] = AWS_SECRET_ACCESS_KEY
-    
+
+    endpoint = os.getenv('MLFLOW_S3_ENDPOINT_URL') or MINIO_ENDPOINT
+    if endpoint:
+        config['MLFLOW_S3_ENDPOINT_URL'] = endpoint
+
+    aws_id = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY')
+    if aws_id:
+        config['AWS_ACCESS_KEY_ID'] = aws_id
+    if aws_secret:
+        config['AWS_SECRET_ACCESS_KEY'] = aws_secret
+
     return config
 
 
@@ -200,7 +203,8 @@ def apply_s3_config():
     """
     s3_config = get_s3_config()
     for key, value in s3_config.items():
-        os.environ[key] = value
+        if value is not None:
+            os.environ[key] = value
 
 
 def validate_remote_config() -> tuple:

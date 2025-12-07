@@ -24,6 +24,7 @@ from .ml_config import (
     COMMON_PORTS
 )
 from .utils import calculate_entropy
+from .logger_setup import logger
 
 
 @dataclass
@@ -166,7 +167,12 @@ class FeatureExtractor:
             return np.array(features, dtype=np.float64)
         
         except Exception as e:
-            # Return None if feature extraction fails
+            # Log exception details for debugging and return None
+            try:
+                logger.exception("Feature extraction failed for %s: %s", ip, e)
+            except Exception:
+                # If logger isn't available for some reason, ignore
+                pass
             return None
     
     def _extract_statistical_features(self, history: PacketHistory) -> List[float]:

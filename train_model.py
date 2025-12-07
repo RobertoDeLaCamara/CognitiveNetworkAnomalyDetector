@@ -138,25 +138,25 @@ Examples:
     try:
         # Check if running with appropriate privileges for packet capture
         if args.duration and os.name == 'posix' and os.geteuid() != 0:
-            print("Warning: Not running as root. Packet capture may be limited.")
-            print("Consider running with sudo for full network access.")
+            logger.warning("Not running as root. Packet capture may be limited.")
+            logger.warning("Consider running with sudo for full network access.")
         
         # Initialize trainer with MLflow configuration
         enable_mlflow = not args.no_mlflow
         trainer = ModelTrainer(enable_mlflow=enable_mlflow)
         
         if trainer.mlflow_enabled:
-            print(f"MLflow tracking enabled")
+            logger.info("MLflow tracking enabled")
             if args.experiment_name:
-                print(f"Experiment: {args.experiment_name}")
+                logger.info(f"Experiment: {args.experiment_name}")
             if args.run_name:
-                print(f"Run name: {args.run_name}")
+                logger.info(f"Run name: {args.run_name}")
         
         if args.duration:
             # Collect live traffic
             logger.info(f"Collecting baseline traffic for {args.duration} seconds...")
-            print(f"Collecting baseline traffic for {args.duration} seconds...")
-            print("Press Ctrl+C to stop early if needed.")
+            logger.info(f"Collecting baseline traffic for {args.duration} seconds...")
+            logger.info("Press Ctrl+C to stop early if needed.")
             
             try:
                 n_samples = trainer.collect_baseline_traffic(
@@ -164,47 +164,46 @@ Examples:
                     interface=args.interface
                 )
             except KeyboardInterrupt:
-                print("\nCollection interrupted by user")
+                logger.info("Collection interrupted by user")
                 logger.info("Training data collection interrupted by user")
                 return 1
             except PermissionError:
-                print("\nError: Permission denied for packet capture")
-                print("Try running with sudo or check network interface permissions")
                 logger.error("Permission denied for packet capture")
+                logger.error("Try running with sudo or check network interface permissions")
                 return 1
             
             logger.info(f"Collected {n_samples} samples")
-            print(f"Collected {n_samples} samples")
+            logger.info(f"Collected {n_samples} samples")
             
             if n_samples < 10:
                 logger.error("Insufficient training samples collected. Need at least 10.")
-                print("\n❌ Insufficient training samples collected. Need at least 10.")
-                print("Try increasing the duration or generating more network traffic.")
+                logger.error("Insufficient training samples collected. Need at least 10.")
+                logger.error("Try increasing the duration or generating more network traffic.")
                 return 1
             
             # Save training data
             if not args.no_save_data:
                 try:
                     trainer.save_training_data()
-                    print("Training data saved successfully")
+                    logger.info("Training data saved successfully")
                 except Exception as save_e:
                     logger.warning(f"Failed to save training data: {save_e}")
-                    print(f"Warning: Failed to save training data: {save_e}")
+                    logger.warning(f"Failed to save training data: {save_e}")
         
         else:
             # Load from file
             logger.info(f"Loading training data from {args.from_file}")
-            print(f"Loading training data from {args.from_file}")
+            logger.info(f"Loading training data from {args.from_file}")
             try:
                 trainer.load_training_data(args.from_file)
             except Exception as load_e:
                 logger.error(f"Failed to load training data: {load_e}")
-                print(f"\n❌ Failed to load training data: {load_e}")
+                logger.error(f"Failed to load training data: {load_e}")
                 return 1
         
         # Train model
         logger.info("Training Isolation Forest model...")
-        print("Training Isolation Forest model...")
+        logger.info("Training Isolation Forest model...")
         
         try:
             stats = trainer.train_model(
@@ -214,42 +213,42 @@ Examples:
             )
         except Exception as train_e:
             logger.error(f"Model training failed: {train_e}")
-            print(f"\n❌ Model training failed: {train_e}")
+            logger.error(f"Model training failed: {train_e}")
             return 1
         
         # Print statistics
-        print("\n" + "="*60)
-        print("TRAINING COMPLETED SUCCESSFULLY")
-        print("="*60)
-        print(f"Samples:          {stats['n_samples']}")
-        print(f"Features:         {stats['n_features']}")
-        print(f"Training time:    {stats['training_time_seconds']:.2f}s")
-        print(f"Anomalies found:  {stats['n_anomalies_detected']} ({stats['anomaly_rate']:.2%})")
-        print(f"Score range:      [{stats['score_min']:.3f}, {stats['score_max']:.3f}]")
-        print(f"Score mean/std:   {stats['score_mean']:.3f} ± {stats['score_std']:.3f}")
-        print("="*60)
+        logger.info("%s", "\n" + "="*60)
+        logger.info("TRAINING COMPLETED SUCCESSFULLY")
+        logger.info("%s", "="*60)
+        logger.info(f"Samples:          {stats['n_samples']}")
+        logger.info(f"Features:         {stats['n_features']}")
+        logger.info(f"Training time:    {stats['training_time_seconds']:.2f}s")
+        logger.info(f"Anomalies found:  {stats['n_anomalies_detected']} ({stats['anomaly_rate']:.2%})")
+        logger.info(f"Score range:      [{stats['score_min']:.3f}, {stats['score_max']:.3f}]")
+        logger.info(f"Score mean/std:   {stats['score_mean']:.3f} ± {stats['score_std']:.3f}")
+        logger.info("%s", "="*60)
         
         # Save model
         logger.info(f"Saving model version {args.version}...")
-        print(f"Saving model version {args.version}...")
+        logger.info(f"Saving model version {args.version}...")
         
         try:
             trainer.save_model(version=args.version)
         except Exception as save_e:
             logger.error(f"Failed to save model: {save_e}")
-            print(f"\n❌ Failed to save model: {save_e}")
+            logger.error(f"Failed to save model: {save_e}")
             return 1
         
-        print(f"\n✅ Model saved successfully (version {args.version})")
-        print(f"   Model path: models/isolation_forest_v{args.version}.joblib")
-        print(f"   Scaler path: models/scaler_v{args.version}.joblib")
+        logger.info(f"Model saved successfully (version {args.version})")
+        logger.info(f"   Model path: models/isolation_forest_v{args.version}.joblib")
+        logger.info(f"   Scaler path: models/scaler_v{args.version}.joblib")
         
         # Print MLflow info if enabled
         if trainer.mlflow_enabled and 'mlflow_run_id' in stats:
-            print(f"   MLflow run ID: {stats['mlflow_run_id']}")
-            print(f"   View in MLflow UI: mlflow ui --backend-store-uri file://{os.getcwd()}/.mlflow/mlruns")
+            logger.info(f"   MLflow run ID: {stats['mlflow_run_id']}")
+            logger.info(f"   View in MLflow UI: mlflow ui --backend-store-uri file://{os.getcwd()}/.mlflow/mlruns")
         
-        print("\nYou can now run the anomaly detector with ML detection enabled.")
+        logger.info("You can now run the anomaly detector with ML detection enabled.")
         
         return 0
     
