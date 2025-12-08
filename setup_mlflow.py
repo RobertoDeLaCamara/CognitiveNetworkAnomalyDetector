@@ -12,8 +12,9 @@ import os
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add src to path securely
+script_dir = Path(__file__).parent.resolve()
+sys.path.insert(0, str(script_dir / 'src'))
 
 try:
     import mlflow
@@ -36,11 +37,11 @@ def setup_mlflow():
     print("MLflow Setup for Cognitive Anomaly Detector")
     print("=" * 60)
     
-    # Create directories
+    # Create directories with secure permissions
     print("\n1. Creating MLflow directories...")
-    MLFLOW_DIR.mkdir(exist_ok=True)
-    (MLFLOW_DIR / 'mlruns').mkdir(exist_ok=True)
-    (MLFLOW_DIR / 'artifacts').mkdir(exist_ok=True)
+    MLFLOW_DIR.mkdir(mode=0o750, exist_ok=True)
+    (MLFLOW_DIR / 'mlruns').mkdir(mode=0o750, exist_ok=True)
+    (MLFLOW_DIR / 'artifacts').mkdir(mode=0o750, exist_ok=True)
     print(f"   ✓ Created {MLFLOW_DIR}")
     print(f"   ✓ Created {MLFLOW_DIR / 'mlruns'}")
     print(f"   ✓ Created {MLFLOW_DIR / 'artifacts'}")

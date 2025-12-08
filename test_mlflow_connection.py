@@ -11,8 +11,9 @@ import sys
 import os
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add src to path securely
+script_dir = Path(__file__).parent.resolve()
+sys.path.insert(0, str(script_dir / 'src'))
 
 try:
     import mlflow
@@ -150,8 +151,10 @@ def test_end_to_end():
                 f.write("MLflow connection test successful!")
                 temp_file = f.name
             
-            mlflow.log_artifact(temp_file, "test_artifacts")
-            Path(temp_file).unlink()  # Clean up
+            try:
+                mlflow.log_artifact(temp_file, "test_artifacts")
+            finally:
+                Path(temp_file).unlink()  # Clean up
             
             print(f"✅ Test run created successfully!")
             print(f"   Run ID: {run.info.run_id}")

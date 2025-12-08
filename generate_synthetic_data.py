@@ -5,9 +5,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import sys
+import argparse
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add src to path securely
+script_dir = Path(__file__).parent.resolve()
+sys.path.insert(0, str(script_dir / 'src'))
 
 from src.ml_config import N_FEATURES, FEATURE_NAMES
 
@@ -19,7 +21,13 @@ def generate_synthetic_data(n_samples=150):
     
     Returns:
         DataFrame with synthetic features
+        
+    Raises:
+        ValueError: If n_samples is invalid
     """
+    if not isinstance(n_samples, int) or n_samples <= 0 or n_samples > 100000:
+        raise ValueError("n_samples must be between 1 and 100000")
+    
     np.random.seed(42)
     
     # Generate normal traffic patterns
@@ -72,21 +80,30 @@ def generate_synthetic_data(n_samples=150):
 
 
 if __name__ == "__main__":
-    print("Generating synthetic training data...")
+    parser = argparse.ArgumentParser(description="Generate synthetic training data")
+    parser.add_argument('--samples', type=int, default=150, help='Number of samples (1-100000)')
+    parser.add_argument('--output', type=str, default='data/training/synthetic_baseline.csv', help='Output file')
+    args = parser.parse_args()
     
-    # Generate data
-    df = generate_synthetic_data(n_samples=150)
-    
-    # Create output directory
-    output_dir = Path("data/training")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save to CSV
-    output_file = output_dir / "synthetic_baseline.csv"
-    df.to_csv(output_file, index=False)
-    
-    print(f"✅ Generated {len(df)} samples")
-    print(f"   Saved to: {output_file}")
-    print(f"   Features: {len(df.columns) - 1}")  # -1 for IP column
-    print(f"\nYou can now train with:")
-    print(f"   python train_model.py --from-file {output_file} --version 1")
+    try:
+        print("Generating synthetic training data...")
+        df = generate_synthetic_data(n_samples=args.samples)
+        
+        output_file = Path(args.output).resolve()
+        if '..' in str(args.output):
+            print("Error: Path traversal detected")
+            sys.exit(1)
+        
+        output_dir = output_file.parent
+        output_dir.mkdir(parents=True, mode=0o750, exist_ok=True)
+        df.to_csv(output_file, index=False)
+        output_file.chmod(0o640)
+        
+        print(f"✅ Generated {len(df)} samples")
+        print(f"   Saved to: {output_file}")
+        print(f"   Features: {len(df.columns) - 1}")
+        print(f"\nYou can now train with:")
+        print(f"   python train_model.py --from-file {output_file} --version 1")
+    except (ValueError, Exception) as e:
+        print(f"Error: {e}")
+        sys.exit(1)

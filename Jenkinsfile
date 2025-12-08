@@ -82,8 +82,9 @@ pipeline {
                 sh '''
                     . $VENV_DIR/bin/activate
                     
-                    # Crear directorio de resultados
+                    # Crear directorio de resultados con permisos seguros
                     mkdir -p test-results
+                    chmod 750 test-results
                     
                     # Run tests with coverage
                     pytest tests/ -v \
@@ -147,8 +148,8 @@ pipeline {
             )
             
             sh '''
-                mkdir -p test-results
-                rm -rf $VENV_DIR
+                mkdir -p test-results || true
+                rm -rf $VENV_DIR || true
             '''
         }
         

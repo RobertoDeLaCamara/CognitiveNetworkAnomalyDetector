@@ -31,7 +31,8 @@ COPY --chown=anomaly:anomaly . .
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/models /app/data/training /app/data/test && \
     chown -R anomaly:anomaly /app && \
-    chmod -R 755 /app
+    chmod -R 750 /app && \
+    chmod 640 /app/requirements.txt
 
 # Switch to non-root user
 USER anomaly

@@ -19,23 +19,36 @@ fi
 # Actualizar repositorios
 echo ""
 echo "Actualizando repositorios..."
-apt-get update
+if ! apt-get update; then
+    echo "Error: Failed to update repositories" >&2
+    exit 1
+fi
 
 # Instalar Python 3 y herramientas necesarias
 echo ""
 echo "Instalando Python 3 y dependencias..."
-apt-get install -y \
+if ! apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
     python3-dev \
-    build-essential
+    build-essential; then
+    echo "Error: Failed to install Python packages" >&2
+    exit 1
+fi
 
 # Verificar instalación
 echo ""
 echo "Verificando instalación..."
-python3 --version
-pip3 --version
+if ! python3 --version; then
+    echo "Error: Python3 installation verification failed" >&2
+    exit 1
+fi
+
+if ! pip3 --version; then
+    echo "Error: pip3 installation verification failed" >&2
+    exit 1
+fi
 
 echo ""
 echo "============================================"
