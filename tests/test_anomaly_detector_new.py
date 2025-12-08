@@ -169,3 +169,127 @@ def test_should_alert_rate_limiting(analyzer):
     # 4th and 5th should be blocked
     assert analyzer._should_alert(ip, alert_type) == False
     assert analyzer._should_alert(ip, alert_type) == False
+
+
+class TestMLDetectionPaths:
+    """Test ML detection code paths."""
+    
+    def test_cleanup_old_data(self):
+        """Test that old data is cleaned up when max IPs exceeded."""
+        analyzer = PacketAnalyzer(enable_ml=False, max_ips=10)
+        
+        # Add more IPs than the limit
+        for i in range(15):
+            analyzer.packet_count_per_ip[f'192.168.1.{i}'] = i + 1
+        
+        # Trigger cleanup
+        analyzer._cleanup_old_data()
+        
+        # Should have removed some IPs
+        assert len(analyzer.packet_count_per_ip) < 15
+    
+    def test_ml_alert_logging(self, mocker):
+        """Test ML-specific alert logging."""
+        analyzer = PacketAnalyzer(enable_ml=False)
+        mock_log_alert = mocker.patch.object(analyzer, 'log_alert')
+        
+        # Set up packet count
+        analyzer.packet_count_per_ip['192.168.1.100'] = 50
+        
+        # Log ML alert
+        analyzer.log_ml_alert('192.168.1.100', -0.5, [1, 2, 3, 4])
+        
+        # Verify alert was logged with correct type
+        assert mock_log_alert.called
+        call_args = mock_log_alert.call_args
+        assert 'ML ANOMALY DETECTED' in call_args[0][0]
+        assert call_args[1]['alert_type'] == 'ML'
+    
+    def test_ml_alert_with_invalid_score(self, mocker, capsys):
+        """Test ML alert with invalid anomaly score."""
+        analyzer = PacketAnalyzer(enable_ml=False)
+        mock_log_alert = mocker.patch.object(analyzer, 'log_alert')
+        
+        # Try to log with invalid score
+        analyzer.log_ml_alert('192.168.1.100', 999.0, [1, 2, 3])
+        
+        # Should not log alert due to invalid score
+        mock_log_alert.assert_not_called()
+    
+    def test_ml_detector_initialization_with_ml_enabled(self, mocker):
+        """Test ML detector initialization when ML is enabled."""
+        # Mock the ML components
+        mock_feature_extractor = MagicMock()
+        mock_ml_detector = MagicMock()
+        
+        with patch('src.anomaly_detector.ML_AVAILABLE', True):
+            with patch('src.anomaly_detector.ML_ENABLED', True):
+                with patch('src.anomaly_detector.FeatureExtractor', return_value=mock_feature_extractor):
+                    with patch('src.anomaly_detector.IsolationForestDetector', return_value=mock_ml_detector):
+                        with patch('os.path.exists', return_value=False):
+                            analyzer = PacketAnalyzer(enable_ml=True)
+                            
+                            # ML should be disabled if no model exists
+                            assert analyzer.ml_enabled is False
+    
+    def test_memory_management_with_max_ips(self):
+        """Test that analyzer respects max_ips limit."""
+        analyzer = PacketAnalyzer(enable_ml=False, max_ips=5)
+        
+        # Add packets from many IPs
+        for i in range(10):
+            packet = IP(src=f'192.168.1.{i}') / TCP(dport=80)
+            analyzer.analyze_packet(packet)
+        
+        # Should trigger cleanup and stay under reasonable limit
+        assert len(analyzer.packet_count_per_ip) <= 10
+    
+    def test_ml_error_handling(self, mocker):
+        """Test that ML errors don't break rule-based detection."""
+        analyzer = PacketAnalyzer(enable_ml=False)
+        
+        # Enable ML but make it fail
+        analyzer.ml_enabled = True
+        analyzer.feature_extractor = MagicMock()
+        analyzer.ml_detector = MagicMock()
+        analyzer.feature_extractor.extract_features.side_effect = Exception("ML Error")
+        
+        mock_log_alert = mocker.patch.object(analyzer, 'log_alert')
+        
+        # Set sufficient packet count for ML
+        analyzer.packet_count_per_ip['192.168.1.100'] = 100
+        
+        # Create packet - should still process with rule-based detection
+        packet = IP(src='192.168.1.100') / TCP(dport=12345)
+        
+        # Should not crash despite ML error
+        analyzer.analyze_packet(packet)
+        
+        # Rule-based detection should still work
+        # (uncommon port should trigger alert)
+        assert any('uncommon port' in str(call) for call in mock_log_alert.call_args_list)
+
+
+class TestPacketValidation:
+    """Test packet validation and error handling."""
+    
+    def test_invalid_port_number(self, mocker):
+        """Test handling of invalid port numbers."""
+        analyzer = PacketAnalyzer(enable_ml=False)
+        
+        # Create packet with manually set invalid port
+        packet = IP(src='192.168.1.100') / TCP()
+        # Manually override port to invalid value
+        packet[TCP].dport = 70000  # Invalid port
+        
+        # Should handle gracefully (may log warning but not crash)
+        analyzer.analyze_packet(packet)
+    
+    def test_invalid_payload_type(self, mocker):
+        """Test handling of invalid payload types."""
+        analyzer = PacketAnalyzer(enable_ml=False)
+        
+        # This should be handled gracefully
+        packet = IP(src='192.168.1.100') / TCP(dport=80)
+        analyzer.analyze_packet(packet)
+

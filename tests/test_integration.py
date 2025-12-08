@@ -8,6 +8,7 @@ import pytest
 import numpy as np
 import tempfile
 import os
+from unittest.mock import patch
 from scapy.all import IP, TCP, UDP, ICMP, Raw
 
 import sys
@@ -296,6 +297,124 @@ class TestBatchPrediction:
             ind_pred, ind_score = detector.predict(sample)
             assert ind_pred == predictions[i]
             assert ind_score == pytest.approx(scores[i])
+
+
+class TestModelTrainerWorkflow:
+    """Test ModelTrainer class functionality."""
+    
+    def test_save_training_data(self):
+        """Test saving training data to CSV."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trainer = ModelTrainer(enable_mlflow=False)
+            
+            # Add some synthetic training data with correct number of features (18)
+            import numpy as np
+            trainer.training_features = np.random.randn(3, N_FEATURES).tolist()
+            trainer.training_ips = ['192.168.1.1', '192.168.1.2', '192.168.1.3']
+            
+            filepath = os.path.join(tmpdir, 'training_data.csv')
+            trainer.save_training_data(filepath)
+            
+            assert os.path.exists(filepath)
+            
+            # Verify CSV content
+            import pandas as pd
+            df = pd.read_csv(filepath)
+            assert len(df) == 3
+            assert 'ip' in df.columns
+            assert list(df['ip']) == trainer.training_ips
+    
+    def test_save_training_data_no_data(self, capsys):
+        """Test saving training data when no data exists."""
+        trainer = ModelTrainer(enable_mlflow=False)
+        trainer.save_training_data()
+        
+        # Should log warning
+        # Note: Logger may not print to capsys, so we just check it doesn't crash
+        assert len(trainer.training_features) == 0
+    
+    def test_validate_model_with_training_set(self):
+        """Test model validation on training set."""
+        trainer = ModelTrainer(enable_mlflow=False)
+        
+        # Create synthetic training data with minimum required samples
+        np.random.seed(42)
+        training_data = np.random.randn(150, N_FEATURES)
+        trainer.training_features = training_data.tolist()
+        trainer.training_ips = [f'192.168.1.{i}' for i in range(150)]
+        
+        # Train model
+        stats = trainer.train_model()
+        assert 'n_samples' in stats
+        
+        # Validate model
+        metrics = trainer.validate_model()
+        
+        assert 'n_samples' in metrics
+        assert 'n_anomalies' in metrics
+        assert 'anomaly_rate' in metrics
+        assert 'score_mean' in metrics
+        assert metrics['n_samples'] == 150
+    
+    def test_validate_model_with_test_set(self):
+        """Test model validation on separate test set."""
+        trainer = ModelTrainer(enable_mlflow=False)
+        
+        # Create training data with minimum required samples
+        np.random.seed(42)
+        training_data = np.random.randn(120, N_FEATURES)
+        trainer.training_features = training_data.tolist()
+        
+        # Train model
+        trainer.train_model()
+        
+        # Validate on different test set
+        test_data = np.random.randn(20, N_FEATURES)
+        metrics = trainer.validate_model(test_data)
+        
+        assert metrics['n_samples'] == 20
+    
+    def test_save_model_with_version(self):
+        """Test saving model with version number."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trainer = ModelTrainer(enable_mlflow=False)
+            
+            # Train a simple model with minimum required samples
+            training_data = np.random.randn(110, N_FEATURES)
+            trainer.training_features = training_data.tolist()
+            trainer.train_model()
+            
+            # Save with version
+            with patch('src.model_trainer.MODEL_DIR', tmpdir):
+                trainer.save_model(version=5, register_model=False)
+                
+                model_file = os.path.join(tmpdir, 'isolation_forest_v5.joblib')
+                scaler_file = os.path.join(tmpdir, 'scaler_v5.joblib')
+                
+                assert os.path.exists(model_file)
+                assert os.path.exists(scaler_file)
+    
+    def test_load_training_data_from_csv(self):
+        """Test loading pre-collected training data."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a CSV file with training data
+            import pandas as pd
+            # Create DataFrame with correct number of features (18)
+            df = pd.DataFrame({
+                'ip': ['192.168.1.1', '192.168.1.2']
+            })
+            # Add 18 feature columns
+            for i in range(N_FEATURES):
+                df[f'feature{i}'] = np.random.randn(2)
+            csv_path = os.path.join(tmpdir, 'training.csv')
+            df.to_csv(csv_path, index=False)
+            
+            trainer = ModelTrainer(enable_mlflow=False)
+            trainer.load_training_data(csv_path)
+            
+            assert len(trainer.training_features) == 2
+            assert len(trainer.training_ips) == 2
+            assert trainer.training_ips == ['192.168.1.1', '192.168.1.2']
 
 
 if __name__ == "__main__":
