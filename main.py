@@ -4,6 +4,7 @@
 import sys
 import os
 import signal
+import argparse
 from scapy.all import sniff
 from src.anomaly_detector import analyze_packet, packet_count_per_ip
 from src.config import MONITORING_INTERVAL
@@ -38,13 +39,47 @@ def main():
     Returns:
         int: Exit code (0 for success, 1 for error)
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Network anomaly detector")
+    parser.add_argument(
+        '--duration',
+        type=int,
+        default=MONITORING_INTERVAL,
+        help=f'Monitoring duration in seconds (default: {MONITORING_INTERVAL})'
+    )
+    parser.add_argument(
+        '--interface',
+        type=str,
+        default=None,
+        help='Network interface to monitor (default: all)'
+    )
+    
+    try:
+        args = parser.parse_args()
+        
+        # Validate arguments
+        if args.duration <= 0 or args.duration > 3600:
+            print("Error: Duration must be between 1 and 3600 seconds")
+            return 1
+        
+        if args.interface:
+            if len(args.interface) > 20 or not args.interface.replace('-', '').replace('_', '').isalnum():
+                print("Error: Invalid interface name")
+                return 1
+        
+        monitoring_duration = args.duration
+        interface = args.interface
+        
+    except SystemExit:
+        return 1
+    
     # Set up signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
         logger.info("Starting anomaly detector")
-        print(f"Starting local network monitoring for {MONITORING_INTERVAL} seconds...")
+        print(f"Starting local network monitoring for {monitoring_duration} seconds...")
         
         # Check privileges
         check_privileges()
@@ -53,7 +88,8 @@ def main():
         try:
             sniff(
                 prn=analyze_packet, 
-                timeout=MONITORING_INTERVAL, 
+                timeout=monitoring_duration,
+                iface=interface,
                 store=False,
                 stop_filter=lambda x: shutdown_requested
             )

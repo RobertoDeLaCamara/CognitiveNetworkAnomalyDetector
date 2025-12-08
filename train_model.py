@@ -43,19 +43,43 @@ def validate_args(args):
             raise ValueError("Duration must be between 1 and 3600 seconds")
     
     if args.from_file is not None:
-        file_path = Path(args.from_file)
+        file_path = Path(args.from_file).resolve()
+        
+        # Check for path traversal attempts
+        if ".." in args.from_file or "~" in args.from_file:
+            raise ValueError("Path traversal detected in file path")
+        
         if not file_path.exists():
             raise ValueError(f"Training file does not exist: {args.from_file}")
         if not file_path.is_file():
             raise ValueError(f"Path is not a file: {args.from_file}")
         if file_path.suffix.lower() != '.csv':
             raise ValueError("Training file must be a CSV file")
+        
+        # Check file size (max 100MB)
+        max_size = 100 * 1024 * 1024
+        if file_path.stat().st_size > max_size:
+            raise ValueError(f"Training file too large (max 100MB)")
     
     if not (0.001 <= args.contamination <= 0.5):
         raise ValueError("Contamination must be between 0.001 and 0.5")
     
     if args.version <= 0 or args.version > 999:
         raise ValueError("Version must be between 1 and 999")
+    
+    # Validate string inputs for injection attacks
+    if args.experiment_name:
+        if len(args.experiment_name) > 100 or not args.experiment_name.replace('-', '').replace('_', '').isalnum():
+            raise ValueError("Invalid experiment name (use alphanumeric, dash, underscore only)")
+    
+    if args.run_name:
+        if len(args.run_name) > 100 or not args.run_name.replace('-', '').replace('_', '').isalnum():
+            raise ValueError("Invalid run name (use alphanumeric, dash, underscore only)")
+    
+    if args.interface:
+        # Basic validation for network interface names
+        if len(args.interface) > 20 or not args.interface.replace('-', '').replace('_', '').isalnum():
+            raise ValueError("Invalid interface name")
 
 def main():
     parser = argparse.ArgumentParser(

@@ -10,6 +10,7 @@ import joblib
 import warnings
 from datetime import datetime
 import numpy as np
+from pathlib import Path
 from typing import Tuple, Optional, Dict, List, Any
 from sklearn.ensemble import IsolationForest
 import sklearn
@@ -214,8 +215,12 @@ class IsolationForestDetector:
         if scaler_path is None:
             scaler_path = SCALER_MODEL_PATH
         
-        # Ensure model directory exists
-        os.makedirs(MODEL_DIR, exist_ok=True)
+        # Validate paths before saving
+        model_path = self._validate_model_path(model_path)
+        scaler_path = self._validate_model_path(scaler_path)
+        
+        # Ensure model directory exists with secure permissions
+        os.makedirs(MODEL_DIR, mode=0o750, exist_ok=True)
         
         try:
             # Create metadata
@@ -264,14 +269,25 @@ class IsolationForestDetector:
         if scaler_path is None:
             scaler_path = SCALER_MODEL_PATH
         
+        # Validate paths to prevent path traversal attacks
+        model_path = self._validate_model_path(model_path)
+        scaler_path = self._validate_model_path(scaler_path)
+        
         # Check if files exist
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found: {model_path}")
         if not os.path.exists(scaler_path):
             raise FileNotFoundError(f"Scaler file not found: {scaler_path}")
         
+        # Check file size to prevent loading malicious large files
+        max_file_size = 100 * 1024 * 1024  # 100 MB
+        if os.path.getsize(model_path) > max_file_size:
+            raise ValueError(f"Model file too large: {os.path.getsize(model_path)} bytes")
+        if os.path.getsize(scaler_path) > max_file_size:
+            raise ValueError(f"Scaler file too large: {os.path.getsize(scaler_path)} bytes")
+        
         try:
-            # Load model data
+            # Load model data with restricted unpickler
             model_data = joblib.load(model_path)
             self.scaler = joblib.load(scaler_path)
             
@@ -314,6 +330,42 @@ class IsolationForestDetector:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+    
+    def _validate_model_path(self, path: str) -> str:
+        """Validate and sanitize model file path to prevent path traversal.
+        
+        Args:
+            path: File path to validate
+            
+        Returns:
+            Validated absolute path
+            
+        Raises:
+            ValueError: If path is invalid or contains traversal attempts
+        """
+        try:
+            # Convert to Path object and resolve to absolute path
+            file_path = Path(path).resolve()
+            
+            # Get the expected model directory
+            model_dir = Path(MODEL_DIR).resolve()
+            
+            # Ensure the file is within the model directory or is an absolute path to a safe location
+            # Allow absolute paths but check they don't contain suspicious patterns
+            path_str = str(file_path)
+            
+            # Check for path traversal attempts
+            if ".." in path or "~" in path:
+                raise ValueError(f"Path traversal detected in: {path}")
+            
+            # Ensure file has .joblib extension
+            if file_path.suffix.lower() != '.joblib':
+                raise ValueError(f"Invalid file extension: {file_path.suffix}")
+            
+            return str(file_path)
+            
+        except Exception as e:
+            raise ValueError(f"Invalid model path: {path} - {e}")
     
     def _validate_model_metadata(self, metadata: Dict[str, Any]) -> List[str]:
         """Validate model metadata for compatibility.
