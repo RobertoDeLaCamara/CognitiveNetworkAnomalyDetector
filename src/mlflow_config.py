@@ -14,7 +14,7 @@ from pathlib import Path
 
 # Remote MLflow tracking server (set via environment variable)
 # Default: local file store
-# Remote example: 'http://192.168.1.86:5050'
+# Remote example: 'http://<MLFLOW_SERVER_IP>:5050'
 REMOTE_MLFLOW_SERVER = os.getenv('MLFLOW_TRACKING_URI')
 
 # Base directory for local MLflow data (used when no remote server)
@@ -38,7 +38,7 @@ MLFLOW_ENABLED = True
 # ========== MinIO / S3 Artifact Storage Configuration ==========
 
 # MinIO S3 endpoint (for artifact storage)
-# Set via environment variable: export MLFLOW_S3_ENDPOINT_URL=http://192.168.1.189:9000
+# Set via environment variable: export MLFLOW_S3_ENDPOINT_URL=http://<MINIO_SERVER_IP>:9000
 MINIO_ENDPOINT = os.getenv('MLFLOW_S3_ENDPOINT_URL')
 
 # S3 bucket for MLflow artifacts

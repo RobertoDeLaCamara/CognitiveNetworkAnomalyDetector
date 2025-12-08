@@ -117,6 +117,35 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
+            
+            // Publish JUnit test results
+            junit(
+                testResults: 'test-results/junit.xml',
+                allowEmptyResults: true,
+                healthScaleFactor: 1.0,
+                keepLongStdio: true
+            )
+            
+            // Publish HTML coverage report
+            publishHTML(
+                target: [
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'htmlcov',
+                    reportFiles: 'index.html',
+                    reportName: 'Coverage Report',
+                    reportTitles: 'Code Coverage'
+                ]
+            )
+            
+            // Archive coverage XML for other tools (e.g., SonarQube)
+            archiveArtifacts(
+                artifacts: 'coverage.xml,test-results/*.xml',
+                allowEmptyArchive: true,
+                fingerprint: true
+            )
+            
             sh '''
                 mkdir -p test-results
                 rm -rf $VENV_DIR

@@ -145,10 +145,10 @@ nano .env
 **.env file:**
 ```bash
 # MLflow tracking server
-MLFLOW_TRACKING_URI=http://192.168.1.86:5050
+MLFLOW_TRACKING_URI=http://<MLFLOW_SERVER_IP>:5050
 
 # MinIO S3 storage
-MLFLOW_S3_ENDPOINT_URL=http://192.168.1.189:9000
+MLFLOW_S3_ENDPOINT_URL=http://<MINIO_SERVER_IP>:9000
 MLFLOW_S3_BUCKET=mlflow-artifacts
 
 # MinIO credentials 
