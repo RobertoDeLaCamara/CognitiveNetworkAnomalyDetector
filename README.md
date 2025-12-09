@@ -95,6 +95,26 @@ Visualize anomalies in real-time with the Streamlit dashboard:
 
 See [DASHBOARD.md](DASHBOARD.md) for full documentation.
 
+### 6. Run with Docker (Recommended)
+
+You can run all components using Docker Compose:
+
+```bash
+# Build containers
+docker-compose build
+
+# Run Dashboard (http://localhost:8501)
+docker-compose up -d dashboard
+
+# Run Detector (background)
+docker-compose up -d detector
+
+# Run Trainer (one-off job)
+docker-compose run --rm trainer --duration 60
+```
+
+See [DOCKER_SETUP.md](DOCKER_SETUP.md) for detailed instructions.
+
 ## MLflow Integration
 
 ### Local MLflow Setup
@@ -248,9 +268,7 @@ cognitive-anomaly-detector/
 │   ├── test_isolation_forest.py    # ML model tests (11 tests)
 │   ├── test_feature_extractor.py   # Feature tests
 │   └── test_payload_analyzer.py    # Pattern tests
-├── models/                          # Trained models (gitignored)
-├── data/                           # Training data (gitignored)
-├── .mlflow/                        # Local MLflow data (gitignored)
+
 ├── train_model.py                  # Training CLI
 ├── main.py                         # Detection entry point
 ├── setup_mlflow.py                 # MLflow initialization
