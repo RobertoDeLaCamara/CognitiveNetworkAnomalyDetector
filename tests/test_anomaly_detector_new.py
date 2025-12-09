@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from scapy.all import IP, ICMP, TCP, UDP, Raw
 from src.anomaly_detector import PacketAnalyzer
+import os
 
 # Mock the logger to prevent it from writing to a file during tests
 @pytest.fixture(autouse=True)
@@ -226,11 +227,13 @@ class TestMLDetectionPaths:
             with patch('src.anomaly_detector.ML_ENABLED', True):
                 with patch('src.anomaly_detector.FeatureExtractor', return_value=mock_feature_extractor):
                     with patch('src.anomaly_detector.IsolationForestDetector', return_value=mock_ml_detector):
+
                         with patch('os.path.exists', return_value=False):
-                            analyzer = PacketAnalyzer(enable_ml=True)
-                            
-                            # ML should be disabled if no model exists
-                            assert analyzer.ml_enabled is False
+                            with patch.dict(os.environ, {'MLFLOW_ENABLE_REMOTE_LOADING': 'false'}):
+                                analyzer = PacketAnalyzer(enable_ml=True)
+                                
+                                # ML should be disabled if no model exists
+                                assert analyzer.ml_enabled is False
     
     def test_memory_management_with_max_ips(self):
         """Test that analyzer respects max_ips limit."""
