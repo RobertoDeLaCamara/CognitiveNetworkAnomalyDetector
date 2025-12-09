@@ -28,3 +28,6 @@ altair>=5.1.0,<6.0.0
 
 # Dimensionality reduction for visualizations
 umap-learn>=0.5.4,<1.0.0
+
+# Environment management
+python-dotenv>=1.0.0,<2.0.0

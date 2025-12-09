@@ -12,14 +12,16 @@ import os
 from pathlib import Path
 
 # Add src to path securely
-script_dir = Path(__file__).parent.resolve()
-sys.path.insert(0, str(script_dir / 'src'))
-
 try:
     import mlflow
     from mlflow.tracking import MlflowClient
     import boto3
     from botocore.exceptions import ClientError
+    from dotenv import load_dotenv
+    
+    # Load environment variables from .env file
+    load_dotenv()
+    
     from src.mlflow_config import (
         get_tracking_uri,
         is_remote_tracking,
@@ -33,7 +35,7 @@ try:
 except ImportError as e:
     print(f"Error importing dependencies: {e}")
     print("\nPlease install required packages:")
-    print("  pip install mlflow boto3")
+    print("  pip install mlflow boto3 python-dotenv")
     sys.exit(1)
 
 
