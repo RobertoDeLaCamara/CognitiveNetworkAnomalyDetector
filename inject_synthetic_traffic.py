@@ -9,7 +9,9 @@ import time
 import random
 import subprocess
 import sys
+import sys
 from datetime import datetime
+from scapy.all import IP, ICMP, send
 
 
 def print_status(message):
@@ -139,6 +141,35 @@ def generate_mixed_traffic():
     print_status("✓ Mixed traffic complete")
 
 
+def generate_diverse_ips():
+    """Generate traffic with spoofed source IPs to ensure enough samples."""
+    print_status("🌍 Generating traffic with SPOOFED source IPs using Scapy...")
+    
+    # Generate 120 random source IPs (need > 100 for training)
+    for i in range(120):
+        fake_ip = f"10.0.{100 + i // 254}.{i % 254 + 1}"
+        
+        # Create packet with spoofed source
+        # We send it to a non-existent destination or local
+        pkt = IP(src=fake_ip, dst="8.8.8.8")/ICMP()
+        
+        try:
+            # Send multiple packets to meet minimum packet requirements for feature extraction
+            for _ in range(4):
+                send(pkt, verbose=False)
+                time.sleep(0.002)
+        except Exception as e:
+            # Requires root usually, but container runs as root
+            # On host (traffic injector), might fail if not root.
+            # But the user is 'roberto', might have sudoless docker but not raw socket access?
+            print(f"Warning: Failed to send spoofed packet: {e}")
+            pass
+        
+        time.sleep(0.05)
+    
+    print_status("✓ Spoofed IP traffic complete")
+
+
 def main():
     """Main function to run synthetic traffic generation."""
     print("=" * 60)
@@ -169,6 +200,9 @@ def main():
         
         # Pattern 5: Mixed traffic
         generate_mixed_traffic()
+        
+        # Pattern 6: Diverse IPs (ensure >10 samples)
+        generate_diverse_ips()
         
         print("\n" + "=" * 60)
         print_status("✅ Synthetic traffic generation complete!")

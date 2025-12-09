@@ -2,7 +2,8 @@
 
 import re
 import json
-import pickle
+import joblib
+import glob
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
@@ -228,36 +229,86 @@ class ModelMetricsLoader:
         """
         self.model_dir = Path(model_dir)
 
+    def _get_latest_model_path(self) -> Optional[Path]:
+        """Get path to the latest model file."""
+        # Look for joblib files matching pattern
+        pattern = str(self.model_dir / "isolation_forest_v*.joblib")
+        files = glob.glob(pattern)
+        
+        if not files:
+            # Fallback to old name just in case
+            old_path = self.model_dir / "isolation_forest_model.pkl"
+            return old_path if old_path.exists() else None
+            
+        # Parse versions to find latest
+        # Filename format: isolation_forest_v{version}.joblib
+        latest_file = None
+        max_version = -1
+        
+        for f_path in files:
+            try:
+                # Extract version number using regex
+                match = re.search(r'v(\d+)\.joblib$', f_path)
+                if match:
+                    version = int(match.group(1))
+                    if version > max_version:
+                        max_version = version
+                        latest_file = Path(f_path)
+            except Exception:
+                continue
+                
+        # If regex matching failed for all, just take the last byte-ordered file
+        if latest_file is None and files:
+            files.sort()
+            latest_file = Path(files[-1])
+            
+        return latest_file
+
     def get_model_info(self) -> Optional[Dict[str, any]]:
         """Get information about the current model.
         
         Returns:
             Dictionary with model metadata or None if not found
         """
-        model_path = self.model_dir / "isolation_forest_model.pkl"
+        model_path = self._get_latest_model_path()
         
-        if not model_path.exists():
+        if not model_path:
             return None
         
         try:
-            with open(model_path, 'rb') as f:
-                model_data = pickle.load(f)
+            # Load using joblib instead of pickle
+            model_data = joblib.load(model_path)
             
-            # Extract metadata if available
-            metadata = model_data.get('metadata', {})
+            # Handle dictionary format (new) or direct model object (old)
+            if isinstance(model_data, dict) and 'metadata' in model_data:
+                metadata = model_data.get('metadata', {})
+                
+                return {
+                    "model_type": metadata.get('model_type', 'IsolationForest'),
+                    "n_features": metadata.get('n_features', len(FEATURE_NAMES)),
+                    "contamination": metadata.get('contamination', 'unknown'),
+                    "n_estimators": metadata.get('n_estimators', 'unknown'),
+                    "trained_date": metadata.get('training_date', 'unknown'),
+                    "model_version": metadata.get('version', 'unknown'),
+                    "file_size": model_path.stat().st_size / 1024,  # KB
+                }
+            elif hasattr(model_data, 'get_params'):
+                # It's a raw sklearn model (old format)
+                params = model_data.get_params()
+                return {
+                    "model_type": type(model_data).__name__,
+                    "n_features": getattr(model_data, 'n_features_in_', 'unknown'),
+                    "contamination": params.get('contamination', 'unknown'),
+                    "n_estimators": params.get('n_estimators', 'unknown'),
+                    "trained_date": datetime.fromtimestamp(model_path.stat().st_mtime).isoformat(),
+                    "model_version": "1.0 (legacy)",
+                    "file_size": model_path.stat().st_size / 1024,  # KB
+                }
             
-            return {
-                "model_type": metadata.get('model_type', 'IsolationForest'),
-                "n_features": metadata.get('n_features', len(FEATURE_NAMES)),
-                "contamination": metadata.get('contamination', 'unknown'),
-                "n_estimators": metadata.get('n_estimators', 'unknown'),
-                "trained_date": metadata.get('trained_date', 'unknown'),
-                "model_version": metadata.get('model_version', 'unknown'),
-                "file_size": model_path.stat().st_size / 1024,  # KB
-            }
+            return None
         
         except Exception as e:
-            logger.error(f"Error loading model metadata: {e}")
+            logger.error(f"Error loading model metadata from {model_path}: {e}")
             return None
 
     def is_model_loaded(self) -> bool:
@@ -266,8 +317,7 @@ class ModelMetricsLoader:
         Returns:
             True if model file exists
         """
-        model_path = self.model_dir / "isolation_forest_model.pkl"
-        return model_path.exists()
+        return self._get_latest_model_path() is not None
 
 
 class MLflowDataLoader:
