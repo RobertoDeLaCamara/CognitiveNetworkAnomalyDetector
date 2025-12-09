@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Base service with common configuration
+  base: &base
+    build: .
+    image: cognitive-anomaly-detector:latest
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+
+  # 1. Trainer Service
+  # Usage: docker-compose run --rm trainer --duration 60
+  trainer:
+    <<: *base
+    container_name: anomaly-trainer
+    entrypoint: [ "python", "train_model.py" ]
+    # Default command (can be overridden)
+    command: [ "--help" ]
+
+  # 2. Detector Service
+  # Usage: docker-compose up -d detector
+  detector:
+    <<: *base
+    container_name: anomaly-detector
+    # Run as root for packet capture permissions
+    user: root
+    # Host networking required for monitoring host traffic
+    network_mode: host
+    privileged: true
+    entrypoint: [ "python", "main.py" ]
+    restart: unless-stopped
+
+  # 3. Dashboard Service
+  # Usage: docker-compose up -d dashboard
+  dashboard:
+    <<: *base
+    container_name: anomaly-dashboard
+    ports:
+      - "8501:8501"
+    entrypoint: [ "./run_dashboard.sh" ]
+    restart: unless-stopped
+    environment:
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0

@@ -335,6 +335,7 @@ cognitive-anomaly-detector/
 
 ## Documentation
 
+- [DOCKER_SETUP.md](DOCKER_SETUP.md) - Docker container setup guide
 - [DASHBOARD.md](DASHBOARD.md) - Streamlit visualization dashboard guide
 - [REMOTE_MLFLOW_SETUP.md](REMOTE_MLFLOW_SETUP.md) - Remote MLflow/MinIO setup
 - [INSTALL.md](INSTALL.md) - Detailed installation guide
