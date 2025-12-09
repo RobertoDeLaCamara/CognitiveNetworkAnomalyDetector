@@ -335,12 +335,13 @@ class ModelTrainer:
         except Exception as e:
             logger.warning(f"Could not log training data: {e}")
     
-    def save_model(self, version: Optional[int] = None, register_model: bool = True):
+    def save_model(self, version: Optional[int] = None, register_model: bool = True, run_id: Optional[str] = None):
         """Save the trained model to disk and optionally register to MLflow.
         
         Args:
             version: Model version number (optional)
             register_model: Register model to MLflow Model Registry
+            run_id: MLflow run ID (required for registration if run is not active)
         """
         if version is not None:
             model_path = Path(MODEL_DIR) / f'isolation_forest_v{version}.joblib'
@@ -351,14 +352,22 @@ class ModelTrainer:
         
         logger.info("Model saved successfully")
         
-        # Register model to MLflow if enabled and active run exists
+        # Register model to MLflow if enabled
         if self.mlflow_enabled and register_model:
             try:
-                active_run = mlflow.active_run()
-                if active_run:
-                    model_uri = f"runs:/{active_run.info.run_id}/{MODEL_ARTIFACT_PATH}"
+                # Use provided run_id or fallback to active run
+                target_run_id = run_id
+                if not target_run_id:
+                    active_run = mlflow.active_run()
+                    if active_run:
+                        target_run_id = active_run.info.run_id
+                
+                if target_run_id:
+                    model_uri = f"runs:/{target_run_id}/{MODEL_ARTIFACT_PATH}"
                     mlflow.register_model(model_uri, REGISTERED_MODEL_NAME)
-                    logger.info(f"Model registered to MLflow: {REGISTERED_MODEL_NAME}")
+                    logger.info(f"Model registered to MLflow: {REGISTERED_MODEL_NAME} (Run ID: {target_run_id})")
+                else:
+                    logger.warning("No active run or run_id provided. Skipping model registration.")
             except Exception as e:
                 logger.warning(f"Could not register model to MLflow: {e}")
     

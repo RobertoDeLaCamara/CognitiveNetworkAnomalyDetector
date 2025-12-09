@@ -257,7 +257,9 @@ Examples:
         logger.info(f"Saving model version {args.version}...")
         
         try:
-            trainer.save_model(version=args.version)
+            # Extract run_id if available
+            run_id = stats.get('mlflow_run_id')
+            trainer.save_model(version=args.version, run_id=run_id)
         except Exception as save_e:
             logger.error(f"Failed to save model: {save_e}")
             logger.error(f"Failed to save model: {save_e}")
