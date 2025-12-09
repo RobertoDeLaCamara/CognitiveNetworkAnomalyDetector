@@ -75,6 +75,26 @@ sudo python train_model.py --duration 60 --version 1
 sudo python main.py
 ```
 
+### 5. Launch Dashboard (Optional)
+
+Visualize anomalies in real-time with the Streamlit dashboard:
+
+```bash
+# Launch dashboard
+./run_dashboard.sh
+
+# Open browser to http://localhost:8501
+```
+
+**Dashboard Features:**
+- 🏠 **Real-time monitoring** with live metrics and charts
+- 📊 **Historical analysis** with custom date ranges
+- 🔍 **Anomaly inspector** for detailed investigation  
+- 🤖 **Model info** showing configuration and features
+- 📈 **MLflow integration** for experiment tracking
+
+See [DASHBOARD.md](DASHBOARD.md) for full documentation.
+
 ## MLflow Integration
 
 ### Local MLflow Setup
@@ -315,6 +335,7 @@ cognitive-anomaly-detector/
 
 ## Documentation
 
+- [DASHBOARD.md](DASHBOARD.md) - Streamlit visualization dashboard guide
 - [REMOTE_MLFLOW_SETUP.md](REMOTE_MLFLOW_SETUP.md) - Remote MLflow/MinIO setup
 - [INSTALL.md](INSTALL.md) - Detailed installation guide
 - [QUICKSTART.md](QUICKSTART.md) - Quick start guide

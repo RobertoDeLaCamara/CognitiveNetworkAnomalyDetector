@@ -1,0 +1,22 @@
+# Streamlit Dashboard Configuration
+
+[client]
+# Hide the Deploy button and minimize toolbar
+toolbarMode = "minimal"
+
+[server]
+# Run in headless mode (no browser auto-open)
+headless = true
+port = 8501
+
+[browser]
+# Disable usage statistics
+gatherUsageStats = false
+
+[theme]
+# Dark theme settings
+base = "dark"
+primaryColor = "#ff4b4b"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
