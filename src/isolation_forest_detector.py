@@ -495,17 +495,40 @@ class IsolationForestDetector:
             
             # Load the sklearn model
             loaded_model = mlflow.sklearn.load_model(model_uri)
-            
-            # Update detector with loaded model
             self.model = loaded_model
             
-            # Note: MLflow sklearn models may not include the scaler
-            # We'll try to load it from the run artifacts if available
-            logger.warning(
-                "Loaded model from MLflow. Note: scaler may need to be loaded separately "
-                "using traditional load() method if not included in MLflow model."
-            )
-            
+            # Try to load scaler from artifacts
+            try:
+                # 1. Parse run ID from model URI
+                run_id = None
+                if "runs:/" in model_uri:
+                    run_id = model_uri.split("runs:/")[1].split("/")[0]
+                elif "models:/" in model_uri:
+                    # Resolve model version to get run ID
+                    client = mlflow.tracking.MlflowClient()
+                    model_version_details = client.get_model_version(model_name, version or "1") # Fallback version 1 if None
+                    run_id = model_version_details.run_id
+                
+                if run_id:
+                    # 2. Download scaler artifact
+                    local_scaler_path = mlflow.artifacts.download_artifacts(
+                        run_id=run_id, 
+                        artifact_path=f"{MODEL_ARTIFACT_PATH}/scaler.joblib"
+                    )
+                    
+                    # 3. Load scaler
+                    if os.path.exists(local_scaler_path):
+                        self.scaler = joblib.load(local_scaler_path)
+                        logger.info(f"Scaler loaded successfully from MLflow artifact")
+                    else:
+                        logger.warning(f"Scaler not found in MLflow artifacts at {local_scaler_path}")
+                else:
+                    logger.warning("Could not determine Run ID to load scaler")
+                    
+            except Exception as scaler_e:
+                logger.warning(f"Failed to load scaler from MLflow: {scaler_e}")
+                logger.warning("Using un-fitted scaler - predictions may be incorrect if data scaling is required!")
+
             self.is_trained = True
             logger.info(f"Model loaded successfully from MLflow: {model_uri}")
             

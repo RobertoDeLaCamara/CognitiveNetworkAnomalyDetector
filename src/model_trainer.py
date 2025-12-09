@@ -282,6 +282,18 @@ class ModelTrainer:
                 logger.warning(f"Could not log model signature: {e}")
                 mlflow.sklearn.log_model(self.detector.model, MODEL_ARTIFACT_PATH)
             
+            # Log scaler as artifact
+            try:
+                import tempfile
+                import joblib
+                with tempfile.NamedTemporaryFile(mode='wb', suffix='.joblib', delete=False) as f:
+                    joblib.dump(self.detector.scaler, f.name)
+                    mlflow.log_artifact(f.name, artifact_path=MODEL_ARTIFACT_PATH)
+                    Path(f.name).unlink()
+                logger.info("Scaler logged to MLflow artifacts")
+            except Exception as e:
+                logger.warning(f"Could not log scaler artifact: {e}")
+
             # Log training data if enabled
             if LOG_TRAINING_DATA and len(self.training_features) > 0:
                 self._log_training_data_artifact()

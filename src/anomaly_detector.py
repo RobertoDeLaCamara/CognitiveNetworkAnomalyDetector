@@ -108,19 +108,41 @@ class PacketAnalyzer:
                 self.ml_detector = IsolationForestDetector()
                 
                 # Try to load pre-trained model
-                if os.path.exists(ISOLATION_FOREST_MODEL_PATH) and os.path.exists(SCALER_MODEL_PATH):
+                model_loaded = False
+                
+                # Option 1: Load from MLflow (if enabled)
+                if ML_ENABLED and os.getenv('MLFLOW_ENABLE_REMOTE_LOADING', 'false').lower() == 'true':
                     try:
-                        self.ml_detector.load(ISOLATION_FOREST_MODEL_PATH, SCALER_MODEL_PATH)
-                        logger.info("ML detector loaded successfully")
-                    except Exception as load_e:
-                        logger.warning(f"Failed to load pre-trained model: {load_e}")
+                        logger.info("Attempting to load model from MLflow...")
+                        stage = os.getenv('MLFLOW_MODEL_STAGE', 'Production')
+                        version = os.getenv('MLFLOW_MODEL_VERSION')
+                        
+                        if version:
+                            self.ml_detector.load_from_mlflow(version=int(version))
+                        else:
+                            self.ml_detector.load_from_mlflow(stage=stage)
+                            
+                        model_loaded = True
+                        logger.info("ML detector loaded successfully from MLflow")
+                    except Exception as mlflow_e:
+                        logger.error(f"Failed to load model from MLflow: {mlflow_e}")
+                        logger.info("Falling back to local model file...")
+                
+                # Option 2: Load from local file (default or fallback)
+                if not model_loaded:
+                    if os.path.exists(ISOLATION_FOREST_MODEL_PATH) and os.path.exists(SCALER_MODEL_PATH):
+                        try:
+                            self.ml_detector.load(ISOLATION_FOREST_MODEL_PATH, SCALER_MODEL_PATH)
+                            logger.info("ML detector loaded successfully from local file")
+                        except Exception as load_e:
+                            logger.warning(f"Failed to load pre-trained model: {load_e}")
+                            self.ml_enabled = False
+                    else:
+                        logger.warning(
+                            f"No pre-trained model found at {ISOLATION_FOREST_MODEL_PATH}. "
+                            "ML detection will be disabled."
+                        )
                         self.ml_enabled = False
-                else:
-                    logger.warning(
-                        f"No pre-trained model found at {ISOLATION_FOREST_MODEL_PATH}. "
-                        "ML detection will be disabled."
-                    )
-                    self.ml_enabled = False
             except Exception as e:
                 logger.error(f"Failed to initialize ML detector: {e}")
                 self.ml_enabled = False

@@ -120,3 +120,15 @@ ML_LOG_FILE = 'ml_anomaly_detection.log'
 
 # Log detailed feature vectors for debugging
 LOG_FEATURE_VECTORS = False
+
+# ========== Remote Model Loading ==========
+
+# Enable loading model from MLflow registry at startup
+MLFLOW_ENABLE_REMOTE_LOADING = os.getenv('MLFLOW_ENABLE_REMOTE_LOADING', 'false').lower() == 'true'
+
+# Stage to load from (None, "Staging", "Production")
+# If None, loads specific version if MLFLOW_MODEL_VERSION is set, else latest
+MLFLOW_MODEL_STAGE = os.getenv('MLFLOW_MODEL_STAGE', 'Production')
+
+# Specific version to load (overrides stage if set)
+MLFLOW_MODEL_VERSION = os.getenv('MLFLOW_MODEL_VERSION', None)
