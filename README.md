@@ -193,10 +193,10 @@ python train_model.py --duration 60 --no-mlflow
 ### Start Monitoring
 
 ```bash
-# Monitor with ML model (default 60s)
+# Monitor with ML model (continuous mode, press Ctrl+C to stop)
 sudo python main.py
 
-# Monitor for custom duration
+# Monitor for custom duration (e.g. 120 seconds)
 sudo python main.py --duration 120
 ```
 
@@ -220,7 +220,7 @@ IP: 142.250.110.81, Packets: 182
 ```python
 ML_ENABLED = True                    # Enable/disable ML detection
 MIN_PACKETS_FOR_ML = 10              # Min packets before ML inference
-ML_ANOMALY_THRESHOLD = -0.1          # Anomaly score threshold
+ML_ANOMALY_THRESHOLD = 0.0          # Anomaly score threshold (adjusted for sensitivity)
 CONTAMINATION = 0.01                 # Expected anomaly rate (1%)
 N_ESTIMATORS = 100                   # Number of trees in forest
 ```

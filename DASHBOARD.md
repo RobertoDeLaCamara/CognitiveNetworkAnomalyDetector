@@ -26,7 +26,7 @@ Comprehensive real-time and historical visualization dashboard for the Cognitive
 3. **🔍 Anomaly Inspector** - Detailed investigation tools
    - Search by IP address
    - Filter by alert type (ML/RULE)
-   - Minimum anomaly score threshold
+   - Minimum anomaly score filter (defaults to 0.0 to show all anomalies)
    - Detailed anomaly view with full context
    - Side-by-side inspection
 
