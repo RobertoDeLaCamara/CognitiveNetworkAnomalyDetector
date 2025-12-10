@@ -227,9 +227,10 @@ N_ESTIMATORS = 100                   # Number of trees in forest
 
 ### Rule-Based Settings (`src/config.py`)
 ```python
-THRESHOLD_MULTIPLIER = 2             # Traffic spike threshold  
-ICMP_THRESHOLD = 10                  # ICMP flood threshold
-LARGE_PAYLOAD_SIZE = 5000            # Large payload threshold
+THRESHOLD_MULTIPLIER = 2.0           # Traffic spike threshold  
+MONITORING_INTERVAL = 60             # Analysis interval in seconds
+ICMP_THRESHOLD = 50                  # ICMP flood threshold
+PAYLOAD_THRESHOLD = 100              # Large payload threshold
 ```
 
 ## Testing
@@ -310,7 +311,7 @@ cognitive-anomaly-detector/
 - Traffic rate spikes (2x average)
 - ICMP flood detection
 - Uncommon port monitoring
-- Large payload detection
+- Large payload detection (> 100 bytes)
 - Malicious pattern matching (SQL injection, XSS, shell commands)
 
 **2. ML-Based Detection (Isolation Forest)**
@@ -396,6 +397,9 @@ cognitive-anomaly-detector/
 - `mlflow>=2.9.0` - Experiment tracking
 - `boto3>=1.28.0` - S3/MinIO storage
 - `numpy`, `pandas` - Data processing
+- `streamlit>=1.28.0` - Real-time dashboard
+- `plotly>=5.17.0` - Interactive visualizations
+- `altair>=5.1.0` - Declarative charting
 
 ## License
 
