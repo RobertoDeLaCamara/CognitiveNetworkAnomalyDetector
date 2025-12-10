@@ -254,29 +254,52 @@ pytest tests/test_integration.py -v
 cognitive-anomaly-detector/
 ├── src/
 │   ├── anomaly_detector.py         # Dual detection engine
+│   ├── config.py                   # General configuration
+│   ├── dashboard_config.py         # Dashboard settings
+│   ├── dashboard_data.py           # Dashboard data management
 │   ├── feature_extractor.py        # 18-feature extraction
 │   ├── isolation_forest_detector.py # ML model implementation
-│   ├── model_trainer.py            # Training pipeline with MLflow
-│   ├── mlflow_config.py            # MLflow configuration
+│   ├── logger_setup.py             # Logging setup
 │   ├── ml_config.py                # ML settings
-│   ├── config.py                   # General configuration
+│   ├── mlflow_config.py            # MLflow configuration
+│   ├── model_trainer.py            # Training pipeline with MLflow
 │   ├── payload_analyzer.py         # Pattern matching
-│   └── logger_setup.py             # Logging setup
+│   ├── security_config.py          # Security settings
+│   ├── utils.py                    # Shared utilities
+│   └── visualization_utils.py      # Plotting helpers
 ├── tests/
-│   ├── test_mlflow_integration.py  # MLflow tests (17 tests)
-│   ├── test_integration.py         # E2E tests (8 tests)
-│   ├── test_isolation_forest.py    # ML model tests (11 tests)
 │   ├── test_feature_extractor.py   # Feature tests
+│   ├── test_integration.py         # E2E tests
+│   ├── test_isolation_forest.py    # ML model tests
+│   ├── test_mlflow_integration.py  # MLflow tests
 │   └── test_payload_analyzer.py    # Pattern tests
-
-├── train_model.py                  # Training CLI
+├── data/                           # Data directory
+├── models/                         # Local model storage
+├── .env.example                    # Environment template
+├── API.md                          # API documentation
+├── CONTRIBUTING.md                 # Contribution guidelines
+├── DASHBOARD.md                    # Dashboard documentation
+├── DOCKER_SETUP.md                 # Docker setup guide
+├── Dockerfile                      # Docker configuration
+├── INSTALL.md                      # Installation guide
+├── Jenkinsfile                     # CI/CD pipeline
+├── LICENSE                         # License file
+├── QUICKSTART.md                   # Quick start guide
+├── README.md                       # Project overview
+├── REMOTE_MLFLOW_SETUP.md          # Remote setup guide
+├── SECURITY.md                     # Security policy
+├── dashboard.py                    # Dashboard implementation
+├── docker-compose.yml              # Docker Compose configuration
+├── generate_synthetic_data.py      # Synthetic data generator
+├── inject_synthetic_traffic.py     # Traffic injector
+├── install-python-jenkins.sh       # Jenkins setup script
 ├── main.py                         # Detection entry point
+├── promote_latest.py               # Model promotion script
+├── requirements.txt                # Dependencies
+├── run_dashboard.sh                # Dashboard launcher
 ├── setup_mlflow.py                 # MLflow initialization
 ├── test_mlflow_connection.py       # Connectivity test
-├── generate_synthetic_data.py      # Synthetic data generator
-├── .env.example                    # Environment template
-├── REMOTE_MLFLOW_SETUP.md          # Remote setup guide
-└── requirements.txt                # Dependencies
+└── train_model.py                  # Training CLI
 ```
 
 ## How It Works
