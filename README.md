@@ -235,19 +235,40 @@ PAYLOAD_THRESHOLD = 100              # Large payload threshold
 
 ## Testing
 
+The project includes a comprehensive test suite covering unit, component, and integration testing.
+
+### Test Categories
+
+| Category | Description | Key Test Files |
+|----------|-------------|----------------|
+| **Unit Tests** | Validates individual functions and logic | `test_feature_extractor.py`<br>`test_payload_analyzer_fixed.py`<br>`test_logger_setup.py` |
+| **Component Tests** | Tests detection engines and ML models | `test_anomaly_detector_new.py`<br>`test_isolation_forest.py` |
+| **Integration Tests** | Verifies end-to-end system flow | `test_integration.py`<br>`test_mlflow_integration.py` |
+
+### Running Tests
+
+Run specific test categories or the full suite using `pytest`:
+
 ```bash
-# Run all tests
+# 1. Run All Tests
 pytest tests/ -v
 
-# With coverage report
-pytest tests/ --cov=src --cov-report=html
+# 2. Run Core Detection Tests (ML & Rules)
+pytest tests/test_anomaly_detector_new.py tests/test_isolation_forest.py -v
 
-# MLflow integration tests
-pytest tests/test_mlflow_integration.py -v
+# 3. Run Integration Tests (System & MLflow)
+pytest tests/test_integration.py tests/test_mlflow_integration.py -v
 
-# Integration tests
-pytest tests/test_integration.py -v
+# 4. Generate Coverage Report
+pytest tests/ --cov=src --cov-report=term-missing
 ```
+
+### Key Test Suites
+
+- **`test_anomaly_detector_new.py`**: Validates the rule-based detection engine (ICMP flood, traffic spikes, port scans).
+- **`test_isolation_forest.py`**: Verifies the ML model's training, saving, loading, and prediction logic.
+- **`test_integration.py`**: Simulates traffic injection to verify the entire pipeline from packet capture to alert generation.
+- **`test_mlflow_integration.py`**: Ensures models are correctly logged, versioned, and retrievable from the MLflow server.
 
 ## Project Structure
 
@@ -293,7 +314,6 @@ cognitive-anomaly-detector/
 ├── docker-compose.yml              # Docker Compose configuration
 ├── generate_synthetic_data.py      # Synthetic data generator
 ├── inject_synthetic_traffic.py     # Traffic injector
-├── install-python-jenkins.sh       # Jenkins setup script
 ├── main.py                         # Detection entry point
 ├── promote_latest.py               # Model promotion script
 ├── requirements.txt                # Dependencies

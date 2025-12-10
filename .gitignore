@@ -147,4 +147,7 @@ mlartifacts/
 # Environment files with credentials
 .env
 
+# Streamlit
+.streamlit/secrets.toml
+
 
