@@ -315,7 +315,7 @@ elif page == "🔍 Anomaly Inspector":
     with col3:
         min_score = st.number_input(
             "Min Anomaly Score",
-            value=-1.0,
+            value=0.0,
             step=0.1,
             format="%.2f"
         )

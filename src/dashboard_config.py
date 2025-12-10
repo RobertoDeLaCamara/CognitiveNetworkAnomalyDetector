@@ -74,7 +74,7 @@ DATA_CACHE_TTL = 5  # seconds for real-time data
 
 # Anomaly log parsing
 LOG_PATTERNS = {
-    "ml_alert": r"\[ML\] ANOMALY: ([\d\.]+) - Score: ([-\d\.]+)",
+    "ml_alert": r"\[ML\] ML ANOMALY DETECTED: ([\d\.]+) - .*Anomaly score: ([-\d\.]+)",
     "rule_alert": r"\[RULE\] ALERT: (.+)",
     "timestamp": r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})",
     "ip_address": r"from ([\d\.]+)",
