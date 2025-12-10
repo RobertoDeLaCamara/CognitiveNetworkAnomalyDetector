@@ -79,39 +79,44 @@ def main():
     
     try:
         logger.info("Starting anomaly detector")
-        print(f"Starting local network monitoring for {monitoring_duration} seconds...")
         
         # Check privileges
         check_privileges()
         
-        # Start packet capture with error handling
-        try:
-            sniff(
-                prn=analyze_packet, 
-                timeout=monitoring_duration,
-                iface=interface,
-                store=False,
-                stop_filter=lambda x: shutdown_requested
-            )
-        except PermissionError:
-            logger.error("Permission denied: Cannot capture packets. Run as root or check network permissions.")
-            print("Error: Permission denied. Try running with sudo or check network interface permissions.")
-            return 1
-        except OSError as e:
-            logger.error(f"Network interface error: {e}")
-            print(f"Error: Network interface problem - {e}")
-            return 1
-        
-        # Display summary of captured traffic
-        print("\nTraffic summary:")
-        if not packet_count_per_ip:
-            print("No traffic was captured.")
-            logger.info("No traffic captured during monitoring period")
-        else:
-            logger.info(f"Captured traffic from {len(packet_count_per_ip)} unique IPs")
-            # Print the number of packets sent by each IP address
-            for ip, count in sorted(packet_count_per_ip.items(), key=lambda x: x[1], reverse=True):
-                print(f"IP: {ip}, Packets sent: {count}")
+        while not shutdown_requested:
+            print(f"\nStarting local network monitoring for {monitoring_duration} seconds...")
+            
+            # Start packet capture with error handling
+            try:
+                sniff(
+                    prn=analyze_packet, 
+                    timeout=monitoring_duration,
+                    iface=interface,
+                    store=False,
+                    stop_filter=lambda x: shutdown_requested
+                )
+            except PermissionError:
+                logger.error("Permission denied: Cannot capture packets. Run as root or check network permissions.")
+                print("Error: Permission denied. Try running with sudo or check network interface permissions.")
+                return 1
+            except OSError as e:
+                logger.error(f"Network interface error: {e}")
+                print(f"Error: Network interface problem - {e}")
+                return 1
+            
+            # Display summary of captured traffic
+            print("\nTraffic summary:")
+            if not packet_count_per_ip:
+                print("No traffic was captured.")
+                logger.info("No traffic captured during monitoring period")
+            else:
+                logger.info(f"Captured traffic from {len(packet_count_per_ip)} unique IPs")
+                # Print the number of packets sent by each IP address
+                for ip, count in sorted(packet_count_per_ip.items(), key=lambda x: x[1], reverse=True):
+                    print(f"IP: {ip}, Packets sent: {count}")
+            
+            if shutdown_requested:
+                break
         
         print("Monitoring finished.")
         logger.info("Anomaly detector finished successfully")

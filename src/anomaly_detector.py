@@ -20,6 +20,7 @@ try:
         ML_ENABLED,
         MIN_PACKETS_FOR_ML,
         ML_ANOMALY_THRESHOLD,
+        ML_LOG_THRESHOLD,
         ISOLATION_FOREST_MODEL_PATH,
         SCALER_MODEL_PATH,
         MODEL_DIR
@@ -290,17 +291,18 @@ class PacketAnalyzer:
                     self.feature_extractor.process_packet(packet)
                     
                     # Only run ML inference if we have enough packets
-                    if self.packet_count_per_ip[ip_src] >= MIN_PACKETS_FOR_ML:
+                    current_packet_count = self.packet_count_per_ip[ip_src]
+                    # logger.info(f"Packet count for {ip_src}: {current_packet_count}/{MIN_PACKETS_FOR_ML}")
+                    
+                    if current_packet_count >= MIN_PACKETS_FOR_ML:
                         features = self.feature_extractor.extract_features(ip_src)
                         
                         if features is not None and len(features) > 0:
                             # Make prediction
                             prediction, anomaly_score = self.ml_detector.predict(features)
                             
-                            # Validate prediction results
-                            if (isinstance(prediction, (int, float)) and 
-                                isinstance(anomaly_score, (int, float)) and
-                                (prediction == -1 or anomaly_score < ML_ANOMALY_THRESHOLD)):
+                            # Validate prediction results (allowing numpy types)
+                            if prediction == -1 or anomaly_score < ML_ANOMALY_THRESHOLD:
                                 self.log_ml_alert(ip_src, anomaly_score, features)
                 except Exception as e:
                     # Don't let ML errors break rule-based detection

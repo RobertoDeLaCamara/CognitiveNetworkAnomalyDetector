@@ -56,7 +56,7 @@ ML_ENABLED = True
 # Anomaly score threshold for alerting (-1 to 1, lower is more anomalous)
 # Isolation Forest scores: -1 = anomaly, 1 = normal
 # We'll alert when score < threshold
-ML_ANOMALY_THRESHOLD = -0.1
+ML_ANOMALY_THRESHOLD = 0.0
 
 # Minimum anomaly score to log (even if not alerting)
 ML_LOG_THRESHOLD = 0.0
