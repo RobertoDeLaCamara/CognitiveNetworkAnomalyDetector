@@ -17,7 +17,6 @@ services:
     user: root
     # Host networking required for monitoring host traffic
     network_mode: host
-    privileged: true
     entrypoint: [ "python", "train_model.py" ]
     # Default command (can be overridden)
     command: [ "--help" ]
@@ -31,6 +30,9 @@ services:
     user: root
     # Host networking required for monitoring host traffic
     network_mode: host
+    environment:
+      - MLFLOW_MODEL_STAGE=Production
+      - MLFLOW_MODEL_VERSION=4
     privileged: true
     entrypoint: [ "python", "main.py" ]
     restart: unless-stopped

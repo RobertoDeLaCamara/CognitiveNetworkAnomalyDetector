@@ -24,7 +24,8 @@ from .ml_config import (
     ISOLATION_FOREST_MODEL_PATH,
     SCALER_MODEL_PATH,
     MODEL_DIR,
-    N_FEATURES
+    N_FEATURES,
+    MIN_TRAINING_SAMPLES
 )
 from .logger_setup import logger
 
@@ -35,7 +36,8 @@ try:
     from .mlflow_config import (
         get_tracking_uri,
         REGISTERED_MODEL_NAME,
-        MODEL_ARTIFACT_PATH
+        MODEL_ARTIFACT_PATH,
+        apply_s3_config
     )
     MLFLOW_AVAILABLE = True
 except ImportError:
@@ -97,11 +99,11 @@ class IsolationForestDetector:
                 f"Expected {N_FEATURES} features, got {features.shape[1]}"
             )
         
-        if features.shape[0] < 10:
+        if features.shape[0] < MIN_TRAINING_SAMPLES:
             raise ValueError(
-                f"Need at least 10 samples for training, got {features.shape[0]}"
+                f"Need at least {MIN_TRAINING_SAMPLES} samples for training, got {features.shape[0]}"
             )
-        
+            
         logger.info(f"Training Isolation Forest on {features.shape[0]} samples...")
         
         # Store feature names
@@ -497,6 +499,9 @@ class IsolationForestDetector:
             loaded_model = mlflow.sklearn.load_model(model_uri)
             self.model = loaded_model
             
+            # Ensure S3/MinIO configuration is applied
+            apply_s3_config()
+
             # Try to load scaler from artifacts
             try:
                 # 1. Parse run ID from model URI

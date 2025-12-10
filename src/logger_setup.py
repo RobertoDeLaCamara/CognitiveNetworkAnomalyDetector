@@ -1,8 +1,7 @@
-"""Logging setup module for the anomaly detection system."""
-
 import logging
 import os
 import stat
+import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from .config import LOG_FILE, LOG_MAX_SIZE, LOG_BACKUP_COUNT
@@ -15,8 +14,8 @@ def _secure_log_file(log_path: str) -> None:
     """
     try:
         if os.path.exists(log_path):
-            # Set file permissions to 640 (owner read/write, group read)
-            os.chmod(log_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP)
+            # Set file permissions to 644 (owner read/write, group read, others read)
+            os.chmod(log_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     except (OSError, PermissionError) as e:
         # Don't fail if we can't set permissions, just log it
         print(f"Warning: Could not set secure permissions on log file: {e}")
@@ -106,6 +105,12 @@ def setup_logger(name: str = None) -> logging.Logger:
         # Configure logger
         logger.setLevel(logging.INFO)
         logger.addHandler(handler)
+
+        # Add console handler for Docker/stdout visibility
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
         
         # Set secure permissions on log file
         if isinstance(handler, RotatingFileHandler):

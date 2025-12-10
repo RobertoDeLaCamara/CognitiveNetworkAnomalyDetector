@@ -66,7 +66,7 @@ def get_mlflow_uri() -> Optional[str]:
     return os.getenv("MLFLOW_TRACKING_URI", None)
 
 MLFLOW_ENABLED = get_mlflow_uri() is not None
-REGISTERED_MODEL_NAME = "cognitive-anomaly-detector"
+REGISTERED_MODEL_NAME = "isolation-forest-anomaly-detector"
 
 # Cache settings
 CACHE_TTL = 60  # seconds

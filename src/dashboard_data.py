@@ -217,17 +217,37 @@ class AnomalyDataLoader:
             "max_score": ml_anomalies['anomaly_score'].max() if len(ml_anomalies) > 0 else 0.0,
         }
 
+    def get_raw_logs(self, lines: int = 100) -> str:
+        """Get the last N lines of the log file as a string.
+
+        Args:
+            lines: Number of lines to read
+
+        Returns:
+            String containing the log lines
+        """
+        if not self.log_file.exists():
+            return "Log file not found."
+
+        try:
+            with open(self.log_file, 'r') as f:
+                content = f.readlines()
+                return "".join(content[-lines:])
+        except Exception as e:
+            return f"Error reading log file: {e}"
 
 class ModelMetricsLoader:
     """Load model metadata and metrics."""
 
-    def __init__(self, model_dir: Path = MODEL_DIR):
+    def __init__(self, model_dir: Path = MODEL_DIR, mlflow_loader: Optional['MLflowDataLoader'] = None):
         """Initialize the model metrics loader.
         
         Args:
             model_dir: Path to model directory
+            mlflow_loader: Optional MLflow data loader
         """
         self.model_dir = Path(model_dir)
+        self.mlflow_loader = mlflow_loader
 
     def _get_latest_model_path(self) -> Optional[Path]:
         """Get path to the latest model file."""
@@ -270,6 +290,12 @@ class ModelMetricsLoader:
         Returns:
             Dictionary with model metadata or None if not found
         """
+        # Try MLflow first if available
+        if self.mlflow_loader and self.mlflow_loader.enabled:
+             mlflow_info = self.mlflow_loader.get_production_model_info()
+             if mlflow_info:
+                 return mlflow_info
+
         model_path = self._get_latest_model_path()
         
         if not model_path:
@@ -394,3 +420,56 @@ class MLflowDataLoader:
         except Exception as e:
             logger.error(f"Error loading MLflow runs: {e}")
             return pd.DataFrame()
+    def get_production_model_info(self) -> Optional[Dict[str, any]]:
+        """Get information about the production model from MLflow."""
+        if not self.enabled:
+            return None
+            
+        try:
+            import mlflow
+            from mlflow.tracking import MlflowClient
+            from .dashboard_config import REGISTERED_MODEL_NAME
+            
+            mlflow.set_tracking_uri(self.tracking_uri)
+            client = MlflowClient()
+            
+            # Get latest versions
+            versions = client.search_model_versions(f"name='{REGISTERED_MODEL_NAME}'")
+            
+            if not versions:
+                return None
+                
+            # Find Production version
+            prod_version = next((v for v in versions if v.current_stage == "Production"), None)
+            
+            # Fallback to latest version if no Production
+            if not prod_version:
+                # Sort by version number desc
+                versions.sort(key=lambda x: int(x.version), reverse=True)
+                target_version = versions[0]
+                stage = "None (Latest)"
+            else:
+                target_version = prod_version
+                stage = "Production"
+                
+            run = mlflow.get_run(target_version.run_id)
+            params = run.data.params
+            metrics = run.data.metrics
+            tags = run.data.tags
+            
+            # Try to get file size (approximate from artifact)
+            # This is hard to get without downloading, so we'll skip or estimate
+            
+            return {
+                "model_type": tags.get("model_type", "IsolationForest"),
+                "n_features": int(params.get("n_features", len(FEATURE_NAMES))),
+                "contamination": params.get("contamination", "unknown"),
+                "n_estimators": params.get("n_estimators", "unknown"),
+                "trained_date": datetime.fromtimestamp(run.info.start_time / 1000).isoformat(),
+                "model_version": f"{target_version.version} ({stage})",
+                "file_size": 0.0,  # Placeholder
+            }
+            
+        except Exception as e:
+            logger.error(f"Error fetching model info from MLflow: {e}")
+            return None

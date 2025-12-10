@@ -62,10 +62,12 @@ st.markdown(f"""
 @st.cache_resource
 def init_data_loaders():
     """Initialize data loaders (cached)."""
+
+    mlflow_loader = MLflowDataLoader() if MLFLOW_ENABLED else None
     return {
         "anomaly": AnomalyDataLoader(),
-        "model": ModelMetricsLoader(),
-        "mlflow": MLflowDataLoader() if MLFLOW_ENABLED else None
+        "model": ModelMetricsLoader(mlflow_loader=mlflow_loader),
+        "mlflow": mlflow_loader
     }
 
 
@@ -76,7 +78,7 @@ loaders = init_data_loaders()
 st.sidebar.title(f"{DASHBOARD_ICON} Navigation")
 page = st.sidebar.radio(
     "Select Page",
-    ["🏠 Home", "📊 Historical Analysis", "🔍 Anomaly Inspector", "🤖 Model Info", "📈 MLflow"]
+    ["🏠 Home", "📊 Historical Analysis", "🔍 Anomaly Inspector", "🤖 Model Info", "📈 MLflow", "📝 Live Logs"]
 )
 
 # Auto-refresh toggle
@@ -474,6 +476,39 @@ elif page == "📈 MLflow":
                 st.dataframe(runs_df, use_container_width=True)
         else:
             st.info("No runs found")
+
+
+# ============================================================================
+# LIVE LOGS PAGE
+# ============================================================================
+elif page == "📝 Live Logs":
+    st.title(f"📝 System Logs")
+    
+    # Controls
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        log_lines = st.slider("Number of lines to show", 50, 2000, 200)
+    
+    with col2:
+        if st.button("🔄 Refresh Logs"):
+            st.rerun()
+            
+    # Auto-scroll checkbox
+    auto_scroll = st.checkbox("Show latest logs at bottom", value=True)
+
+    # Load logs
+    with st.spinner("Reading logs..."):
+        logs = loaders["anomaly"].get_raw_logs(lines=log_lines)
+    
+    # Display logs - use code block for monospaced font and scrolling
+    st.code(logs, language="text")
+    
+    # Auto-refresh logic specifically for this page if global auto-refresh is on
+    if auto_refresh:
+        import time
+        time.sleep(refresh_interval)
+        st.rerun()
 
 
 # Footer

@@ -11,6 +11,10 @@ import argparse
 import sys
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add src to path securely
 script_dir = Path(__file__).parent.resolve()
@@ -159,6 +163,9 @@ Examples:
     except ValueError as e:
         parser.error(str(e))
     
+    # Load configuration
+    from src.ml_config import MIN_TRAINING_SAMPLES
+
     try:
         # Check if running with appropriate privileges for packet capture
         if args.duration and os.name == 'posix' and os.geteuid() != 0:
@@ -199,9 +206,9 @@ Examples:
             logger.info(f"Collected {n_samples} samples")
             logger.info(f"Collected {n_samples} samples")
             
-            if n_samples < 10:
-                logger.error("Insufficient training samples collected. Need at least 10.")
-                logger.error("Insufficient training samples collected. Need at least 10.")
+            if n_samples < MIN_TRAINING_SAMPLES:
+                logger.error(f"Insufficient training samples collected. Need at least {MIN_TRAINING_SAMPLES}.")
+                logger.error(f"Insufficient training samples collected. Need at least {MIN_TRAINING_SAMPLES}.")
                 logger.error("Try increasing the duration or generating more network traffic.")
                 return 1
             

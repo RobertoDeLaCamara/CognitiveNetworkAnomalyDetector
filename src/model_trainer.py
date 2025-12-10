@@ -286,11 +286,14 @@ class ModelTrainer:
             try:
                 import tempfile
                 import joblib
-                with tempfile.NamedTemporaryFile(mode='wb', suffix='.joblib', delete=False) as f:
-                    joblib.dump(self.detector.scaler, f.name)
-                    mlflow.log_artifact(f.name, artifact_path=MODEL_ARTIFACT_PATH)
-                    Path(f.name).unlink()
-                logger.info("Scaler logged to MLflow artifacts")
+                import os
+                if self.detector.scaler:
+                    # Save scaler as artifact with fixed name
+                    with tempfile.TemporaryDirectory() as tmp_dir:
+                        scaler_path = os.path.join(tmp_dir, "scaler.joblib")
+                        joblib.dump(self.detector.scaler, scaler_path)
+                        mlflow.log_artifact(scaler_path, artifact_path=MODEL_ARTIFACT_PATH)
+                        logger.info("Scaler logged to MLflow artifacts as scaler.joblib")
             except Exception as e:
                 logger.warning(f"Could not log scaler artifact: {e}")
 

@@ -4,7 +4,7 @@ Comprehensive real-time and historical visualization dashboard for the Cognitive
 
 ## Features
 
-### 📊 **Five Interactive Pages**
+### 📊 **Six Interactive Pages**
 
 1. **🏠 Home** - Real-time monitoring
    - Live anomaly metrics (total, ML, rule-based, unique IPs)
@@ -41,6 +41,12 @@ Comprehensive real-time and historical visualization dashboard for the Cognitive
    - Training runs history
    - Parameters and metrics display
    - Connection status
+
+6. **📝 Live Logs** - Real-time system logs
+   - View raw `anomaly_detection.log` output
+   - Auto-refresh capability
+   - Configurable number of lines
+   - Filter logs by keyword
 
 ## Quick Start
 
@@ -169,6 +175,19 @@ Navigate to: **http://localhost:8501**
 **If Not Configured:**
 - Shows setup instructions
 - Links to REMOTE_MLFLOW_SETUP.md
+
+### Live Logs
+
+**Features:**
+- Display raw content of `anomaly_detection.log`
+- Auto-refresh support (detects new lines)
+- Slider to control number of lines (10-1000)
+- "Scroll to bottom" verification
+
+**Use Cases:**
+- Verify detector is running
+- Debug errors in real-time
+- Monitor individual alerts as they happen
 
 ## Configuration
 

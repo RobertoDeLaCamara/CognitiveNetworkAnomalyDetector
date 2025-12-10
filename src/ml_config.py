@@ -67,7 +67,7 @@ ML_LOG_THRESHOLD = 0.0
 TRAINING_DATA_DIR = 'data/training'
 
 # Minimum number of samples required for training
-MIN_TRAINING_SAMPLES = 100
+MIN_TRAINING_SAMPLES = 10
 
 # Maximum training samples to keep in memory
 MAX_TRAINING_SAMPLES = 10000
