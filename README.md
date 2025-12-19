@@ -90,12 +90,25 @@ Visualize anomalies in real-time with the Streamlit dashboard:
 - 🏠 **Real-time monitoring** with live metrics and charts
 - 📊 **Historical analysis** with custom date ranges
 - 🔍 **Anomaly inspector** for detailed investigation  
+- 🌐 **Traffic Insights** for network pattern analysis
+- ⚙️ **System Config** for configuration verification
+- 📑 **Reports** for incident reporting
 - 🤖 **Model info** showing configuration and features
-- 📈 **MLflow integration** for experiment tracking
+- 📈 **MLflow integration** (backend) for experiment tracking
 
 See [DASHBOARD.md](DASHBOARD.md) for full documentation.
 
-### 6. Run with Docker (Recommended)
+### 6. Security Updates
+
+Recent security fixes include:
+- Hardcoded credentials removal
+- ReDoS protection
+- Command injection prevention
+- Path traversal protection
+
+See [SECURITY_FIXES.md](SECURITY_FIXES.md) for details.
+
+### 7. Run with Docker (Recommended)
 
 You can run all components using Docker Compose:
 

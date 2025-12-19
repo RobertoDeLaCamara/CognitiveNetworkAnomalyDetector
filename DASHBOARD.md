@@ -4,7 +4,7 @@ Comprehensive real-time and historical visualization dashboard for the Cognitive
 
 ## Features
 
-### 📊 **Six Interactive Pages**
+### 📊 **Eight Interactive Pages**
 
 1. **🏠 Home** - Real-time monitoring
    - Live anomaly metrics (total, ML, rule-based, unique IPs)
@@ -36,11 +36,26 @@ Comprehensive real-time and historical visualization dashboard for the Cognitive
    - Feature list (18 features)
    - Model status indicator
 
-5. **📈 MLflow** - Experiment tracking integration
-   - Recent experiments list
-   - Training runs history
-   - Parameters and metrics display
-   - Connection status
+5. **🌐 Traffic Insights** - Network pattern analysis
+   - Target port distribution
+   - Temporal heatmaps (day/hour analysis)
+   - Deep-dive into traffic trends
+
+6. **⚙️ System Config** - Configuration view
+   - View current detection rules
+   - Inspect ML configuration parameters
+   - Read-only system state verification
+
+7. **📑 Reports** - Incident reporting
+   - Generate executive summaries
+   - HTML report export
+   - Custom reporting periods
+
+8. **📝 Live Logs** - Real-time system logs
+   - View raw `anomaly_detection.log` output
+   - Auto-refresh capability
+   - Configurable number of lines
+   - Filter logs by keyword
 
 6. **📝 Live Logs** - Real-time system logs
    - View raw `anomaly_detection.log` output
@@ -160,23 +175,42 @@ Navigate to: **http://localhost:8501**
 - ✅ Model loaded successfully
 - ❌ No model found (with training instructions)
 
-### MLflow Integration
-
-**Requirements:**
-- MLflow tracking URI configured in `.env`
-- Remote MLflow server running
+### Traffic Insights
 
 **Features:**
-- List of recent experiments
-- Training runs with parameters
-- Metrics display (training time, etc.)
-- Connection status indicator
+- **Target Port Distribution**: Bar chart showing most attacked ports
+- **Temporal Heatmap**: Visualization of anomaly density by day and hour
+- **Analysis Period**: Slider to select history depth (1-30 days)
 
-**If Not Configured:**
-- Shows setup instructions
-- Links to REMOTE_MLFLOW_SETUP.md
+**Use Cases:**
+- Identify coordinated port scans
+- Spot temporal patterns (e.g., attacks during specific hours)
+- Understand attack surface focus
 
-### Live Logs
+### System Config
+
+**Features:**
+- **Detection Rules**: View current thresholds (packet rate, ICMP, ports, payload)
+- **ML Configuration**: View ML settings (threshold, contamination, model directory)
+
+**Use Cases:**
+- Verify current system behavior
+- Audit configuration settings
+- Troubleshooting detection logic
+
+### Reports
+
+**Features:**
+- **Executive Summary**: Generated HTML reports
+- **Custom Periods**: Select number of days to report on
+- **Downloadable**: Export reports for sharing
+
+**Use Cases:**
+- Weekly security briefings
+- Incident documentation
+- Compliance records
+
+
 
 **Features:**
 - Display raw content of `anomaly_detection.log`
