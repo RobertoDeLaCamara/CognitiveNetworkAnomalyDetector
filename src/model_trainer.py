@@ -16,6 +16,16 @@ from scapy.all import sniff
 
 from .feature_extractor import FeatureExtractor
 from .isolation_forest_detector import IsolationForestDetector
+# Import validation function locally to avoid circular imports
+import ipaddress
+
+def _validate_ip_address(ip_str: str) -> bool:
+    """Validate IP address format."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return not (ip.is_loopback or ip.is_link_local)
+    except (ipaddress.AddressValueError, ValueError):
+        return False
 from .ml_config import (
     MIN_TRAINING_SAMPLES,
     TRAINING_DATA_DIR,
@@ -119,19 +129,61 @@ class ModelTrainer:
         Args:
             filepath: Path to CSV file with training data
         """
+        # Secure file path to prevent traversal
+        if '..' in str(filepath):
+            raise ValueError(f"Path traversal detected: {filepath}")
+            
+        file_path = Path(filepath).resolve()
+        
+        # Ensure file is CSV and exists
+        if file_path.suffix.lower() != '.csv':
+            raise ValueError(f"Invalid file type: {file_path.suffix}")
+        if not file_path.exists():
+            raise FileNotFoundError(f"Training data file not found: {filepath}")
+            
+        # Check file size (max 100MB)
+        file_size = file_path.stat().st_size
+        if file_size > 100 * 1024 * 1024:
+            raise ValueError(f"File too large: {file_size} bytes (max 100MB)")
+            
         logger.info(f"Loading training data from {filepath}")
         
-        df = pd.read_csv(filepath)
+        try:
+            # Limit rows to prevent memory exhaustion
+            df = pd.read_csv(filepath, nrows=50000)
+        except Exception as e:
+            raise ValueError(f"Failed to load training data: {e}")
         
+        # Validate DataFrame structure
+        if len(df) == 0:
+            raise ValueError("Empty training data file")
+        if len(df.columns) > 50:
+            raise ValueError(f"Too many columns: {len(df.columns)} (max 50)")
+            
         # Extract features (assuming all columns except 'ip' are features)
         if 'ip' in df.columns:
-            self.training_ips = df['ip'].tolist()
+            # Validate IP addresses
+            valid_ips = []
+            invalid_count = 0
+            for ip in df['ip']:
+                if isinstance(ip, str) and _validate_ip_address(ip):
+                    valid_ips.append(ip)
+                else:
+                    valid_ips.append(f"invalid_ip_{invalid_count}")
+                    invalid_count += 1
+            self.training_ips = valid_ips
             feature_cols = [col for col in df.columns if col != 'ip']
         else:
             self.training_ips = [f"ip_{i}" for i in range(len(df))]
             feature_cols = df.columns.tolist()
         
-        self.training_features = df[feature_cols].values.tolist()
+        # Validate feature data
+        feature_data = df[feature_cols].values
+        if np.any(np.isnan(feature_data)) or np.any(np.isinf(feature_data)):
+            logger.warning("Invalid values detected in training data, cleaning...")
+            feature_data = np.nan_to_num(feature_data, nan=0.0, posinf=1e6, neginf=-1e6)
+            
+        self.training_features = feature_data.tolist()
         
         logger.info(
             f"Loaded {len(self.training_features)} samples with "
@@ -288,12 +340,18 @@ class ModelTrainer:
                 import joblib
                 import os
                 if self.detector.scaler:
-                    # Save scaler as artifact with fixed name
-                    with tempfile.TemporaryDirectory() as tmp_dir:
-                        scaler_path = os.path.join(tmp_dir, "scaler.joblib")
-                        joblib.dump(self.detector.scaler, scaler_path)
-                        mlflow.log_artifact(scaler_path, artifact_path=MODEL_ARTIFACT_PATH)
-                        logger.info("Scaler logged to MLflow artifacts as scaler.joblib")
+                    # Save scaler as artifact with secure temp file
+                    with tempfile.NamedTemporaryFile(suffix=".joblib", delete=False) as tmp_file:
+                        try:
+                            joblib.dump(self.detector.scaler, tmp_file.name)
+                            mlflow.log_artifact(tmp_file.name, artifact_path=MODEL_ARTIFACT_PATH)
+                            logger.info("Scaler logged to MLflow artifacts as scaler.joblib")
+                        finally:
+                            # Ensure cleanup
+                            try:
+                                os.unlink(tmp_file.name)
+                            except OSError:
+                                pass
             except Exception as e:
                 logger.warning(f"Could not log scaler artifact: {e}")
 
@@ -330,11 +388,16 @@ class ModelTrainer:
             df.insert(0, 'ip', self.training_ips)
             
             with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
-                df.to_csv(f.name, index=False)
-                mlflow.log_artifact(f.name, 'training_data')
-                Path(f.name).unlink()  # Clean up temp file
-            
-            logger.info("Training data logged to MLflow")
+                try:
+                    df.to_csv(f.name, index=False)
+                    mlflow.log_artifact(f.name, 'training_data')
+                    logger.info("Training data logged to MLflow")
+                finally:
+                    # Ensure cleanup
+                    try:
+                        Path(f.name).unlink()
+                    except OSError:
+                        pass
         except Exception as e:
             logger.warning(f"Could not log training data: {e}")
     
@@ -388,7 +451,12 @@ class ModelTrainer:
         if filepath is None:
             Path(TRAINING_DATA_DIR).mkdir(parents=True, exist_ok=True)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            filepath = Path(TRAINING_DATA_DIR) / f'baseline_traffic_{timestamp}.csv'
+            filepath = Path(TRAINING_DATA_DIR).resolve() / f'baseline_traffic_{timestamp}.csv'
+        else:
+            # Allow absolute paths for testing, but check for traversal
+            if '..' in str(filepath):
+                raise ValueError(f"Path traversal detected: {filepath}")
+            filepath = Path(filepath).resolve()
         
         # Create DataFrame
         feature_names = self.feature_extractor.get_feature_names()

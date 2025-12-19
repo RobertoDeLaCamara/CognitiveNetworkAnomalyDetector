@@ -11,6 +11,7 @@ machine learning-based anomaly detection. Features are categorized into:
 
 import time
 import numpy as np
+import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List
@@ -94,15 +95,20 @@ class PacketHistory:
 class FeatureExtractor:
     """Extracts ML features from network traffic packets."""
     
-    def __init__(self, window_size: int = FEATURE_WINDOW_SIZE):
+    def __init__(self, window_size: int = FEATURE_WINDOW_SIZE, max_ips: int = 1000):
         """Initialize the feature extractor.
         
         Args:
             window_size: Time window in seconds for temporal features
+            max_ips: Maximum number of IPs to track (prevents memory exhaustion)
         """
         self.window_size = window_size
+        self.max_ips = min(max_ips, 5000)  # Hard limit for security
         self.ip_data: Dict[str, PacketHistory] = defaultdict(PacketHistory)
         self.start_time = time.time()
+        self.packet_count = 0
+        self.max_packets = 50000  # Global packet limit
+        self._lock = threading.RLock()  # Thread safety
     
     def process_packet(self, packet) -> Optional[str]:
         """Process a packet and update internal state.
@@ -115,14 +121,33 @@ class FeatureExtractor:
         """
         if IP not in packet:
             return None
-        
-        ip_src = packet[IP].src
-        timestamp = time.time()
-        
-        # Add packet to history
-        self.ip_data[ip_src].add_packet(packet, timestamp)
-        
-        return ip_src
+            
+        with self._lock:
+            # Global packet limit
+            self.packet_count += 1
+            if self.packet_count > self.max_packets:
+                logger.warning("Feature extractor packet limit reached")
+                return None
+            
+            ip_src = packet[IP].src
+            
+            # Validate IP address
+            try:
+                import ipaddress
+                ipaddress.ip_address(ip_src)
+            except ValueError:
+                return None
+                
+            # Memory management
+            if len(self.ip_data) >= self.max_ips:
+                self._cleanup_old_ips()
+            
+            timestamp = time.time()
+            
+            # Add packet to history
+            self.ip_data[ip_src].add_packet(packet, timestamp)
+            
+            return ip_src
     
     def extract_features(self, ip: str) -> Optional[np.ndarray]:
         """Extract feature vector for a given IP address.
@@ -133,47 +158,49 @@ class FeatureExtractor:
         Returns:
             Numpy array of shape (N_FEATURES,) or None if insufficient data
         """
-        if ip not in self.ip_data:
-            return None
+        with self._lock:
+            if ip not in self.ip_data:
+                return None
+            
+            # Create a deep copy to avoid race conditions
+            history = self.ip_data[ip]
+            
+            # Need at least a few packets for meaningful features
+            if history.total_packets < 3:
+                return None
         
-        history = self.ip_data[ip]
-        
-        # Need at least a few packets for meaningful features
-        if history.total_packets < 3:
-            return None
-        
-        try:
-            features = []
-            
-            # ===== Statistical Features (6) =====
-            features.extend(self._extract_statistical_features(history))
-            
-            # ===== Temporal Features (4) =====
-            features.extend(self._extract_temporal_features(history))
-            
-            # ===== Protocol Features (3) =====
-            features.extend(self._extract_protocol_features(history))
-            
-            # ===== Port Features (2) =====
-            features.extend(self._extract_port_features(history))
-            
-            # ===== Payload Features (3) =====
-            features.extend(self._extract_payload_features(history))
-            
-            # Verify feature count
-            if len(features) != N_FEATURES:
-                raise ValueError(f"Expected {N_FEATURES} features, got {len(features)}")
-            
-            return np.array(features, dtype=np.float64)
-        
-        except Exception as e:
-            # Log exception details for debugging and return None
             try:
-                logger.exception("Feature extraction failed for %s: %s", ip, e)
-            except Exception:
-                # If logger isn't available for some reason, ignore
-                pass
-            return None
+                features = []
+                
+                # ===== Statistical Features (6) =====
+                features.extend(self._extract_statistical_features(history))
+                
+                # ===== Temporal Features (4) =====
+                features.extend(self._extract_temporal_features(history))
+                
+                # ===== Protocol Features (3) =====
+                features.extend(self._extract_protocol_features(history))
+                
+                # ===== Port Features (2) =====
+                features.extend(self._extract_port_features(history))
+                
+                # ===== Payload Features (3) =====
+                features.extend(self._extract_payload_features(history))
+                
+                # Verify feature count
+                if len(features) != N_FEATURES:
+                    raise ValueError(f"Expected {N_FEATURES} features, got {len(features)}")
+                
+                return np.array(features, dtype=np.float64)
+            
+            except Exception as e:
+                # Log exception details for debugging and return None
+                try:
+                    logger.exception("Feature extraction failed for %s: %s", ip, e)
+                except Exception:
+                    # If logger isn't available for some reason, ignore
+                    pass
+                return None
     
     def _extract_statistical_features(self, history: PacketHistory) -> List[float]:
         """Extract statistical features (6 features)."""
@@ -296,7 +323,27 @@ class FeatureExtractor:
         """Get list of feature names."""
         return FEATURE_NAMES.copy()
     
+    def _cleanup_old_ips(self):
+        """Remove old IPs to prevent memory exhaustion."""
+        # This method is called from within a lock context
+        if len(self.ip_data) < self.max_ips:
+            return
+            
+        # Sort by packet count and remove least active IPs
+        sorted_ips = sorted(
+            self.ip_data.items(),
+            key=lambda x: x[1].total_packets
+        )
+        
+        # Remove bottom 20% of IPs (ensure at least 1)
+        to_remove = max(1, len(sorted_ips) // 5)
+        for ip, _ in sorted_ips[:to_remove]:
+            del self.ip_data[ip]
+            
+        logger.info(f"Cleaned up {to_remove} old IPs from feature extractor")
+    
     def reset(self):
         """Reset all stored data."""
         self.ip_data.clear()
         self.start_time = time.time()
+        self.packet_count = 0

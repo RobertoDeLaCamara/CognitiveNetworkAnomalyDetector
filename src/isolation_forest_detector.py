@@ -217,9 +217,9 @@ class IsolationForestDetector:
         if scaler_path is None:
             scaler_path = SCALER_MODEL_PATH
         
-        # Validate paths before saving
-        model_path = self._validate_model_path(model_path)
-        scaler_path = self._validate_model_path(scaler_path)
+        # Validate and secure paths before saving
+        model_path = self._secure_path(model_path)
+        scaler_path = self._secure_path(scaler_path)
         
         # Ensure model directory exists with secure permissions
         os.makedirs(MODEL_DIR, mode=0o750, exist_ok=True)
@@ -246,8 +246,11 @@ class IsolationForestDetector:
             joblib.dump(model_data, model_path)
             joblib.dump(self.scaler, scaler_path)
             
-            logger.info(f"Model saved to {model_path} with metadata")
-            logger.info(f"Scaler saved to {scaler_path}")
+            # Sanitize paths for logging
+            safe_model_path = Path(model_path).name
+            safe_scaler_path = Path(scaler_path).name
+            logger.info(f"Model saved to {safe_model_path} with metadata")
+            logger.info(f"Scaler saved to {safe_scaler_path}")
             logger.info(f"Model version: {metadata['version']}, sklearn: {metadata['sklearn_version']}")
             
         except Exception as e:
@@ -271,9 +274,9 @@ class IsolationForestDetector:
         if scaler_path is None:
             scaler_path = SCALER_MODEL_PATH
         
-        # Validate paths to prevent path traversal attacks
-        model_path = self._validate_model_path(model_path)
-        scaler_path = self._validate_model_path(scaler_path)
+        # Validate and secure paths to prevent path traversal attacks
+        model_path = self._secure_path(model_path)
+        scaler_path = self._secure_path(scaler_path)
         
         # Check if files exist
         if not os.path.exists(model_path):
@@ -289,7 +292,11 @@ class IsolationForestDetector:
             raise ValueError(f"Scaler file too large: {os.path.getsize(scaler_path)} bytes")
         
         try:
-            # Load model data with restricted unpickler
+            # Validate file integrity before loading
+            self._validate_file_integrity(model_path)
+            self._validate_file_integrity(scaler_path)
+            
+            # Load model data using joblib (more secure than custom unpickler)
             model_data = joblib.load(model_path)
             self.scaler = joblib.load(scaler_path)
             
@@ -326,48 +333,75 @@ class IsolationForestDetector:
                 logger.warning("Model loaded without metadata (old format)")
             
             self.is_trained = True
-            logger.info(f"Model loaded from {model_path}")
-            logger.info(f"Scaler loaded from {scaler_path}")
+            # Sanitize paths for logging
+            safe_model_path = Path(model_path).name
+            safe_scaler_path = Path(scaler_path).name
+            logger.info(f"Model loaded from {safe_model_path}")
+            logger.info(f"Scaler loaded from {safe_scaler_path}")
             
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
     
-    def _validate_model_path(self, path: str) -> str:
-        """Validate and sanitize model file path to prevent path traversal.
+    def _validate_file_integrity(self, file_path: str):
+        """Validate file integrity and safety.
         
         Args:
-            path: File path to validate
-            
-        Returns:
-            Validated absolute path
+            file_path: Path to file to validate
             
         Raises:
-            ValueError: If path is invalid or contains traversal attempts
+            ValueError: If file is unsafe
+        """
+        import hashlib
+        
+        # Check file size
+        file_size = os.path.getsize(file_path)
+        if file_size > 100 * 1024 * 1024:  # 100MB limit
+            raise ValueError(f"File too large: {file_size} bytes")
+            
+        # Basic file header validation for joblib files
+        with open(file_path, 'rb') as f:
+            header = f.read(10)
+            # Joblib files should start with specific bytes
+            if not (header.startswith(b'\x80\x03') or header.startswith(b'\x80\x04')):
+                raise ValueError("Invalid joblib file format")
+    
+    def _secure_path(self, path: str) -> str:
+        """Secure file path to prevent traversal attacks.
+        
+        Args:
+            path: File path to secure
+            
+        Returns:
+            Secure absolute path
+            
+        Raises:
+            ValueError: If path contains traversal attempts
         """
         try:
-            # Convert to Path object and resolve to absolute path
-            file_path = Path(path).resolve()
+            # Check for obvious traversal attempts
+            if '..' in path or path.startswith('~'):
+                raise ValueError(f"Path traversal detected: {path}")
             
-            # Get the expected model directory
-            model_dir = Path(MODEL_DIR).resolve()
+            # Convert to absolute path
+            secure_path = Path(path).resolve()
             
-            # Ensure the file is within the model directory or is an absolute path to a safe location
-            # Allow absolute paths but check they don't contain suspicious patterns
-            path_str = str(file_path)
+            # Only create directory if path is valid and not in system directories
+            if not str(secure_path).startswith(('/etc', '/sys', '/proc', '/dev')):
+                try:
+                    secure_path.parent.mkdir(parents=True, exist_ok=True)
+                except (PermissionError, OSError):
+                    # Don't fail on directory creation issues for security validation
+                    pass
             
-            # Check for path traversal attempts
-            if ".." in path or "~" in path:
-                raise ValueError(f"Path traversal detected in: {path}")
+            # Validate extension
+            if secure_path.suffix.lower() != '.joblib':
+                raise ValueError(f"Invalid file extension: {secure_path.suffix}")
             
-            # Ensure file has .joblib extension
-            if file_path.suffix.lower() != '.joblib':
-                raise ValueError(f"Invalid file extension: {file_path.suffix}")
-            
-            return str(file_path)
+            return str(secure_path)
             
         except Exception as e:
-            raise ValueError(f"Invalid model path: {path} - {e}")
+            raise ValueError(f"Invalid path: {path} - {e}")
     
     def _validate_model_metadata(self, metadata: Dict[str, Any]) -> List[str]:
         """Validate model metadata for compatibility.

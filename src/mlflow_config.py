@@ -183,13 +183,25 @@ def get_s3_config() -> dict:
 
     endpoint = os.getenv('MLFLOW_S3_ENDPOINT_URL') or MINIO_ENDPOINT
     if endpoint:
-        config['MLFLOW_S3_ENDPOINT_URL'] = endpoint
+        # Validate endpoint URL format
+        import re
+        if re.match(r'^https?://[a-zA-Z0-9.-]+:[0-9]+$', endpoint):
+            config['MLFLOW_S3_ENDPOINT_URL'] = endpoint
+        else:
+            raise ValueError(f"Invalid S3 endpoint format: {endpoint}")
 
     aws_id = os.getenv('AWS_ACCESS_KEY_ID')
     aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY')
+    
+    # Validate credentials format (basic validation)
     if aws_id:
+        if len(aws_id) < 3 or len(aws_id) > 128 or not aws_id.replace('_', '').replace('-', '').isalnum():
+            raise ValueError("Invalid AWS access key format")
         config['AWS_ACCESS_KEY_ID'] = aws_id
+        
     if aws_secret:
+        if len(aws_secret) < 8 or len(aws_secret) > 128:
+            raise ValueError("Invalid AWS secret key format")
         config['AWS_SECRET_ACCESS_KEY'] = aws_secret
 
     return config

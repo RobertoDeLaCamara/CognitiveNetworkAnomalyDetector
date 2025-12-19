@@ -26,6 +26,11 @@ from src.visualization_utils import (
     plot_anomaly_rate_over_time, plot_top_ips,
     plot_alert_type_distribution
 )
+from src.dashboard_extensions import (
+    plot_port_distribution, plot_hourly_heatmap, generate_html_report
+)
+import src.config as app_config
+import src.ml_config as ml_config
 
 
 # Page configuration
@@ -78,7 +83,7 @@ loaders = init_data_loaders()
 st.sidebar.title(f"{DASHBOARD_ICON} Navigation")
 page = st.sidebar.radio(
     "Select Page",
-    ["🏠 Home", "📊 Historical Analysis", "🔍 Anomaly Inspector", "🤖 Model Info", "📈 MLflow", "📝 Live Logs"]
+    ["🏠 Home", "📊 Historical Analysis", "🌐 Traffic Insights", "🔍 Anomaly Inspector", "🤖 Model Info", "⚙️ System Config", "📑 Reports", "📝 Live Logs"]
 )
 
 # Auto-refresh toggle
@@ -296,6 +301,45 @@ elif page == "📊 Historical Analysis":
 
 
 # ============================================================================
+# TRAFFIC INSIGHTS PAGE
+# ============================================================================
+elif page == "🌐 Traffic Insights":
+    st.title("🌐 Traffic Insights")
+    
+    # Load data (default to last 24h for insights)
+    days_back = st.slider("Analyze last N days", 1, 30, 7)
+    with st.spinner("Analyzing traffic patterns..."):
+        df_insights = loaders["anomaly"].load_anomalies(
+            start_date=datetime.now() - timedelta(days=days_back)
+        )
+    
+    if df_insights.empty:
+        st.warning("No data available for analysis.")
+    else:
+        st.subheader(f"Analysis Period: Last {days_back} Days")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 🎯 Target Port Distribution")
+            st.markdown("Most frequently targeted ports based on rule alerts.")
+            fig_ports = plot_port_distribution(df_insights)
+            if fig_ports:
+                st.plotly_chart(fig_ports, use_container_width=True)
+            else:
+                st.info("No port-specific data found in alerts.")
+                
+        with col2:
+            st.markdown("### ⏰ Temporal Patterns")
+            st.markdown("Heatmap of anomaly occurrences by day and hour.")
+            fig_heat = plot_hourly_heatmap(df_insights)
+            if fig_heat:
+                st.plotly_chart(fig_heat, use_container_width=True)
+            else:
+                st.info("Insufficient data for heatmap.")
+
+
+# ============================================================================
 # ANOMALY INSPECTOR PAGE
 # ============================================================================
 elif page == "🔍 Anomaly Inspector":
@@ -424,58 +468,83 @@ elif page == "🤖 Model Info":
 
 
 # ============================================================================
-# MLFLOW PAGE
+# SYSTEM CONFIGURATION PAGE
 # ============================================================================
-elif page == "📈 MLflow":
-    st.title("📈 MLflow Integration")
+elif page == "⚙️ System Config":
+    st.title("⚙️ System Configuration")
     
-    if not MLFLOW_ENABLED:
-        st.warning("⚠️ MLflow is not configured")
-        st.info("""
-        To enable MLflow integration:
-        1. Set up a remote MLflow server
-        2. Configure environment variables in `.env`
-        3. See REMOTE_MLFLOW_SETUP.md for details
-        """)
-    else:
-        mlflow_loader = loaders["mlflow"]
+    st.info("Read-only view of current system configuration.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("🛡️ Detection Rules")
+        config_data = {
+            "Packet Threshold (Multiplier)": app_config.THRESHOLD_MULTIPLIER,
+            "ICMP Flood Threshold": app_config.ICMP_THRESHOLD,
+            "Uncommon Ports": str(app_config.HIGH_TRAFFIC_PORTS),
+            "Max Payload Size": f"{app_config.PAYLOAD_THRESHOLD} bytes"
+        }
+        st.table(pd.DataFrame(config_data.items(), columns=["Parameter", "Value"]).astype(str))
         
-        st.success(f"✅ Connected to MLflow: {mlflow_loader.tracking_uri}")
-        
-        # Experiments
-        st.subheader("Recent Experiments")
-        experiments = mlflow_loader.get_experiments(limit=10)
-        
-        if experiments:
-            exp_df = pd.DataFrame(experiments)
-            st.dataframe(exp_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No experiments found")
-        
-        # Runs
-        st.markdown("---")
-        st.subheader("Recent Runs")
-        
-        runs_df = mlflow_loader.get_recent_runs(limit=20)
-        
-        if not runs_df.empty:
-            # Select relevant columns
-            display_cols = [col for col in [
-                'run_name', 'start_time', 'status',
-                'params.contamination', 'params.n_estimators',
-                'metrics.training_time'
-            ] if col in runs_df.columns]
+    with col2:
+        st.subheader("🧠 ML Configuration")
+        ml_data = {
+            "ML Enabled": ml_config.ML_ENABLED,
+            "Min Packets for Inference": ml_config.MIN_PACKETS_FOR_ML,
+            "Anomaly Score Threshold": ml_config.ML_ANOMALY_THRESHOLD,
+            "Model Directory": str(ml_config.MODEL_DIR)
+        }
+        st.table(pd.DataFrame(ml_data.items(), columns=["Parameter", "Value"]).astype(str))
+
+# ============================================================================
+# REPORTS PAGE
+# ============================================================================
+elif page == "📑 Reports":
+    st.title("📑 Incident Reporting")
+    
+    st.markdown("Generate and download executive summaries of security incidents.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        report_days = st.number_input("Report Period (Days)", min_value=1, max_value=30, value=1)
+    
+    if st.button("Generat Report"):
+        with st.spinner("Generating report..."):
+            # Load data
+            start_dt = datetime.now() - timedelta(days=report_days)
+            df_report = loaders["anomaly"].load_anomalies(start_date=start_dt)
+            stats_report = loaders["anomaly"].get_anomaly_stats() # Note: this gets ALL stats, ideally filter for date
             
-            if display_cols:
-                st.dataframe(
-                    runs_df[display_cols],
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.dataframe(runs_df, use_container_width=True)
-        else:
-            st.info("No runs found")
+            # Recalculate stats for just this period (simple approximation for now)
+            # A better way would be adding dates to get_anomaly_stats, but we'll calc key ones manually or mock
+            filtered_stats = {
+                "total_anomalies": len(df_report),
+                "ml_anomalies": len(df_report[df_report['alert_type'] == 'ML']),
+                "rule_anomalies": len(df_report[df_report['alert_type'] == 'RULE']),
+                "unique_ips": df_report['ip_address'].nunique()
+            }
+            
+            html_content = generate_html_report(df_report, filtered_stats)
+            
+            st.success("Report generated successfully!")
+            
+            # Preview (simplified)
+            st.markdown("### Report Preview")
+            st.components.v1.html(html_content, height=400, scrolling=True)
+            
+            # Download button
+            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            st.download_button(
+                label="📥 Download HTML Report",
+                data=html_content,
+                file_name=f"security_report_{timestamp_str}.html",
+                mime="text/html"
+            )
+
+
+
+
 
 
 # ============================================================================

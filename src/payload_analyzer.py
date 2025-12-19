@@ -1,14 +1,22 @@
 """Payload analysis module for detecting malicious patterns in network traffic."""
 
 import re
+import threading
+import time
 from typing import Tuple, Optional, List
 from .config import MALICIOUS_PATTERNS, MAX_PAYLOAD_SCAN_SIZE, MAX_PATTERN_MATCHES
 from .logger_setup import logger
 from .utils import calculate_entropy
 
+# Timeout for pattern matching to prevent ReDoS attacks
+PATTERN_MATCH_TIMEOUT = 1  # 1 second
+
 # Sort patterns by length (longest first) to match more specific patterns first
 # This ensures "UNION SELECT" is matched before "SELECT"
 _SORTED_PATTERNS = sorted(MALICIOUS_PATTERNS, key=len, reverse=True)
+
+class PatternMatchTimeoutError(Exception):
+    pass
 
 def _sanitize_pattern_for_logging(pattern: str) -> str:
     """Sanitize pattern string for safe logging.
@@ -62,27 +70,50 @@ def detect_malicious_payload(payload: bytes) -> Tuple[bool, Optional[str]]:
     scan_payload = payload[:MAX_PAYLOAD_SCAN_SIZE]
     
     try:
-        # Convert to lowercase for case-insensitive matching
-        payload_lower = scan_payload.lower()
+        # Thread-safe timeout implementation
+        result = [None]
+        exception = [None]
         
-        for pattern in _SORTED_PATTERNS:
+        def pattern_match():
             try:
-                # Ensure pattern is bytes and convert to lowercase
-                if isinstance(pattern, bytes):
-                    pattern_lower = pattern.lower()
-                    if pattern_lower in payload_lower:
-                        # Return the original pattern (not lowercase) for logging
-                        safe_pattern = _sanitize_pattern_for_logging(
-                            pattern.decode('utf-8', errors='replace')
-                        )
-                        return True, safe_pattern
-                        
-            except (UnicodeDecodeError, TypeError, AttributeError) as e:
-                logger.debug(f"Error processing pattern: {e}")
-                continue
+                # Convert to lowercase for case-insensitive matching
+                payload_lower = scan_payload.lower()
+                
+                for pattern in _SORTED_PATTERNS:
+                    try:
+                        # Ensure pattern is bytes and convert to lowercase
+                        if isinstance(pattern, bytes):
+                            pattern_lower = pattern.lower()
+                            if pattern_lower in payload_lower:
+                                # Return the original pattern (not lowercase) for logging
+                                safe_pattern = _sanitize_pattern_for_logging(
+                                    pattern.decode('utf-8', errors='replace')
+                                )
+                                result[0] = (True, safe_pattern)
+                                return
+                                
+                    except (UnicodeDecodeError, TypeError, AttributeError) as e:
+                        logger.debug(f"Error processing pattern: {e}")
+                        continue
+                
+                result[0] = (False, None)
+            except Exception as e:
+                exception[0] = e
         
-        return False, None
+        # Run pattern matching in thread with timeout
+        thread = threading.Thread(target=pattern_match)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=PATTERN_MATCH_TIMEOUT)
         
+        if thread.is_alive():
+            logger.warning("Pattern matching timeout - potential ReDoS attack")
+            return True, "TIMEOUT_ATTACK"
+        
+        if exception[0]:
+            raise exception[0]
+            
+        return result[0] if result[0] else (False, None)
     except Exception as e:
         logger.error(f"Error in payload analysis: {e}")
         return False, None

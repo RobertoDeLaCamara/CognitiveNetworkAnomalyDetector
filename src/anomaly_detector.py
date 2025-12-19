@@ -11,6 +11,7 @@ from scapy.all import IP, ICMP, TCP, UDP, Raw
 from .logger_setup import logger
 from .payload_analyzer import detect_malicious_payload
 from .config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD
+from .resource_monitor import resource_monitor
 
 # ML imports
 try:
@@ -33,9 +34,21 @@ except ImportError as e:
 
 # Build absolute paths for model files
 def _get_model_path(relative_path: str) -> str:
-    """Convert relative model path to absolute path."""
+    """Convert relative model path to absolute path with security validation."""
+    # Validate path to prevent traversal attacks
+    if '..' in relative_path or relative_path.startswith('/'):
+        raise ValueError(f"Invalid model path: {relative_path}")
+        
     if os.path.isabs(relative_path):
-        return relative_path
+        # Only allow paths within project directory
+        project_root = Path(__file__).parent.parent
+        abs_path = Path(relative_path)
+        try:
+            abs_path.relative_to(project_root)
+            return relative_path
+        except ValueError:
+            raise ValueError(f"Path outside project directory: {relative_path}")
+    
     project_root = Path(__file__).parent.parent
     return str(project_root / relative_path)
 
@@ -82,18 +95,25 @@ def _sanitize_ip_for_logging(ip_str: str) -> str:
 class PacketAnalyzer:
     """Encapsulates anomaly detection logic for network packets."""
     
-    def __init__(self, enable_ml: bool = True, max_ips: int = 10000):
+    def __init__(self, enable_ml: bool = True, max_ips: int = 1000):
         """Initialize the packet analyzer.
         
         Args:
             enable_ml: Whether to enable ML-based detection
             max_ips: Maximum number of IPs to track (prevents memory exhaustion)
         """
+        # Enforce stricter limits to prevent DoS
+        if max_ips > 5000:
+            max_ips = 5000
+            logger.warning("IP limit capped at 5000 for security")
+            
         self.packet_count_per_ip = defaultdict(int)
         self.packet_rate_per_ip = defaultdict(lambda: deque(maxlen=10))
         self.start_time = time.time()
         self.max_ips = max_ips
         self.ml_enabled = enable_ml and ML_AVAILABLE and ML_ENABLED
+        self.packet_count = 0
+        self.max_packets = 100000  # Prevent memory exhaustion
         
         # Rate limiting for alerts
         self.alert_timestamps = defaultdict(lambda: deque(maxlen=5))
@@ -272,6 +292,17 @@ class PacketAnalyzer:
             if not packet or IP not in packet:
                 return
 
+            # Global packet limit to prevent DoS
+            self.packet_count += 1
+            if self.packet_count > self.max_packets:
+                logger.warning("Packet limit reached, dropping packets")
+                return
+                
+            # Check resource usage
+            if resource_monitor.should_throttle():
+                logger.warning("Resource usage high, throttling packet processing")
+                return
+
             ip_src = packet[IP].src
             
             # Validate IP address
@@ -282,7 +313,13 @@ class PacketAnalyzer:
             if len(self.packet_count_per_ip) > self.max_ips:
                 self._cleanup_old_data()
             
+            # Increment packet count first
             self.packet_count_per_ip[ip_src] += 1
+            
+            # Per-IP packet limit check
+            if self.packet_count_per_ip[ip_src] > 10000:
+                logger.warning(f"IP {ip_src} exceeded packet limit")
+                return
 
             # ML-based detection (if enabled)
             if self.ml_enabled and self.feature_extractor is not None and self.ml_detector is not None:

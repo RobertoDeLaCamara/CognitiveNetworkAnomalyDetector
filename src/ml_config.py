@@ -24,8 +24,9 @@ CONTAMINATION = 0.01
 # Number of trees in the forest
 N_ESTIMATORS = 100
 
-# Random state for reproducibility
-RANDOM_STATE = 42
+# Random state for reproducibility (use secure random in production)
+import secrets
+RANDOM_STATE = int(os.getenv('ML_RANDOM_STATE', secrets.randbits(32) % 2147483647))
 
 # Maximum samples to use for training ('auto' or int)
 MAX_SAMPLES = 'auto'

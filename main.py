@@ -57,14 +57,19 @@ def main():
     try:
         args = parser.parse_args()
         
-        # Validate arguments
+        # Validate arguments with strict security checks
         if args.duration <= 0 or args.duration > 3600:
             print("Error: Duration must be between 1 and 3600 seconds")
             return 1
         
         if args.interface:
-            if len(args.interface) > 20 or not args.interface.replace('-', '').replace('_', '').isalnum():
-                print("Error: Invalid interface name")
+            # Strict interface name validation to prevent injection
+            import re
+            if (len(args.interface) > 15 or 
+                not re.match(r'^[a-zA-Z0-9_-]+$', args.interface) or
+                args.interface.startswith('-') or
+                '..' in args.interface):
+                print("Error: Invalid interface name. Use only alphanumeric, underscore, and hyphen.")
                 return 1
         
         monitoring_duration = args.duration
@@ -88,6 +93,19 @@ def main():
             
             # Start packet capture with error handling
             try:
+                # Additional security: validate interface exists if specified
+                if interface:
+                    try:
+                        import psutil
+                        available_interfaces = list(psutil.net_if_addrs().keys())
+                        if interface not in available_interfaces:
+                            logger.error(f"Interface '{interface}' not found")
+                            print(f"Error: Interface '{interface}' not available")
+                            return 1
+                    except ImportError:
+                        logger.warning("psutil not available - skipping interface validation")
+                        print(f"Warning: Cannot validate interface '{interface}' - psutil not installed")
+                
                 sniff(
                     prn=analyze_packet, 
                     timeout=monitoring_duration,
