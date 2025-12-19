@@ -292,6 +292,7 @@ cognitive-anomaly-detector/
 │   ├── config.py                   # General configuration
 │   ├── dashboard_config.py         # Dashboard settings
 │   ├── dashboard_data.py           # Dashboard data management
+│   ├── dashboard_extensions.py     # Dashboard additional charts
 │   ├── feature_extractor.py        # 18-feature extraction
 │   ├── isolation_forest_detector.py # ML model implementation
 │   ├── logger_setup.py             # Logging setup
@@ -299,15 +300,21 @@ cognitive-anomaly-detector/
 │   ├── mlflow_config.py            # MLflow configuration
 │   ├── model_trainer.py            # Training pipeline with MLflow
 │   ├── payload_analyzer.py         # Pattern matching
+│   ├── resource_monitor.py         # Resource usage tracking
 │   ├── security_config.py          # Security settings
 │   ├── utils.py                    # Shared utilities
 │   └── visualization_utils.py      # Plotting helpers
 ├── tests/
+│   ├── test_anomaly_detector_new.py # Detection engine tests
 │   ├── test_feature_extractor.py   # Feature tests
 │   ├── test_integration.py         # E2E tests
 │   ├── test_isolation_forest.py    # ML model tests
+│   ├── test_logger_setup.py        # Logger tests
+│   ├── test_mlflow_config.py       # MLflow config tests
 │   ├── test_mlflow_integration.py  # MLflow tests
-│   └── test_payload_analyzer.py    # Pattern tests
+│   ├── test_payload_analyzer.py    # Pattern tests
+│   ├── test_payload_analyzer_fixed.py # Fixed pattern tests
+│   └── test_security_config.py     # Security config tests
 ├── data/                           # Data directory
 ├── models/                         # Local model storage
 ├── .env.example                    # Environment template
@@ -323,6 +330,7 @@ cognitive-anomaly-detector/
 ├── README.md                       # Project overview
 ├── REMOTE_MLFLOW_SETUP.md          # Remote setup guide
 ├── SECURITY.md                     # Security policy
+├── SECURITY_FIXES.md               # Security fixes log
 ├── dashboard.py                    # Dashboard implementation
 ├── docker-compose.yml              # Docker Compose configuration
 ├── generate_synthetic_data.py      # Synthetic data generator
