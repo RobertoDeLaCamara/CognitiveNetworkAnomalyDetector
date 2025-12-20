@@ -5,9 +5,13 @@ FROM python:3.11-slim
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
-        libpcap-dev \
-        gcc \
-        && \
+    build-essential \
+    gfortran \
+    libopenblas-dev \
+    liblapack-dev \
+    pkg-config \
+    libpcap-dev \
+    && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
