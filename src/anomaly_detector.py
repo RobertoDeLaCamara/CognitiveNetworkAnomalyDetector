@@ -10,7 +10,7 @@ from typing import Optional, Tuple, Dict, Any
 from scapy.all import IP, ICMP, TCP, UDP, Raw
 from .logger_setup import logger
 from .payload_analyzer import detect_malicious_payload
-from .config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD
+from .config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD, TRUSTED_SUBNETS
 from .resource_monitor import resource_monitor
 from .db_manager import DBManager
 
@@ -73,6 +73,15 @@ def _validate_ip_address(ip_str: str) -> bool:
         # Skip reserved/private addresses that might be noise
         if ip.is_loopback or ip.is_link_local:
             return False
+            
+        # Check against trusted subnets
+        for subnet in TRUSTED_SUBNETS:
+             try:
+                 if ip in ipaddress.ip_network(subnet):
+                     return False # Ignore trusted subnet
+             except ValueError:
+                 pass
+                 
         return True
     except (ipaddress.AddressValueError, ValueError):
         return False

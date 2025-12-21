@@ -14,6 +14,7 @@ MONITORING_INTERVAL = int(os.getenv('MONITORING_INTERVAL', 60))  # Seconds
 HIGH_TRAFFIC_PORTS = [22, 53, 80, 443, 993, 995, 587, 465]  # Common ports
 ICMP_THRESHOLD = int(os.getenv('ICMP_THRESHOLD', 50))  # ICMP packet threshold
 PAYLOAD_THRESHOLD = int(os.getenv('PAYLOAD_THRESHOLD', 100))  # Payload size threshold
+TRUSTED_SUBNETS = os.getenv('TRUSTED_SUBNETS', '192.168.65.0/24').split(',')  # Trusted subnets to ignore
 
 # Security settings
 MAX_PAYLOAD_SCAN_SIZE = 1024  # Maximum payload size to scan for patterns
