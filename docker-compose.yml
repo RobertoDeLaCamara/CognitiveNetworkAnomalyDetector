@@ -19,7 +19,7 @@ services:
     network_mode: host
     entrypoint: [ "python", "train_model.py" ]
     # Default command (can be overridden)
-    command: [ "--help" ]
+    command: [ "--duration", "60" ]
 
   # 2. Detector Service
   # Usage: docker-compose up -d detector
