@@ -28,7 +28,7 @@ from src.visualization_utils import (
 )
 from src.dashboard_extensions import (
     plot_port_distribution, plot_hourly_heatmap, generate_html_report,
-    plot_ip_category_distribution
+    plot_ip_category_distribution, get_known_ips_table
 )
 import src.config as app_config
 import src.ml_config as ml_config
@@ -344,11 +344,22 @@ elif page == "🌐 Traffic Insights":
         st.markdown("### 🌍 Source Network Analysis")
         st.markdown("Categorization of source IP addresses (Local vs Public vs Known Services).")
         
-        fig_cat = plot_ip_category_distribution(df_insights)
-        if fig_cat:
-            st.plotly_chart(fig_cat, use_container_width=True)
-        else:
-            st.info("No IP data available for categorization.")
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            fig_cat = plot_ip_category_distribution(df_insights)
+            if fig_cat:
+                st.plotly_chart(fig_cat, use_container_width=True)
+            else:
+                st.info("No IP data available for categorization.")
+                
+        with col2:
+            st.markdown("#### Detected Known Services")
+            known_ips_df = get_known_ips_table(df_insights)
+            if not known_ips_df.empty:
+                st.dataframe(known_ips_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No well-known public IPs detected in alerts.")
 
 
 # ============================================================================

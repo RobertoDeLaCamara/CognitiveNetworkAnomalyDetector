@@ -101,13 +101,26 @@ def plot_hourly_heatmap(df: pd.DataFrame):
     )
     return fig
 
-# Known public IP map for demonstration
+# Known public IP map
 KNOWN_IPS = {
-    "8.8.8.8": "Google DNS",
-    "8.8.4.4": "Google DNS",
+    # Google
+    "8.8.8.8": "Google DNS (Primary)",
+    "8.8.4.4": "Google DNS (Secondary)",
+    # Cloudflare
     "1.1.1.1": "Cloudflare DNS",
     "1.0.0.1": "Cloudflare DNS",
-    "142.250.0.0/16": "Google Services", # Simplified subnet matching
+    # Quad9
+    "9.9.9.9": "Quad9 DNS",
+    "149.112.112.112": "Quad9 DNS",
+    # OpenDNS
+    "208.67.222.222": "OpenDNS Home",
+    "208.67.220.220": "OpenDNS Home",
+    # Level3
+    "4.2.2.1": "Level3 DNS",
+    "4.2.2.2": "Level3 DNS",
+    # Local router/gateway usually 
+    "192.168.1.1": "Local Gateway",
+    "192.168.0.1": "Local Gateway",
 }
 
 def get_ip_info(ip_str: str) -> str:
@@ -157,6 +170,25 @@ def plot_ip_category_distribution(df: pd.DataFrame):
     fig.update_layout(margin=dict(t=40, b=20, l=20, r=20))
     
     return fig
+
+def get_known_ips_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Get table of detected known public IPs."""
+    if df.empty:
+        return pd.DataFrame()
+        
+    # Filter for IPs in KNOWN_IPS
+    known_mask = df['ip_address'].isin(KNOWN_IPS.keys())
+    df_known = df[known_mask].copy()
+    
+    if df_known.empty:
+        return pd.DataFrame()
+        
+    df_known['Entity Name'] = df_known['ip_address'].map(KNOWN_IPS)
+    
+    summary = df_known.groupby(['ip_address', 'Entity Name']).size().reset_index(name='Alert Count')
+    summary = summary.sort_values('Alert Count', ascending=False)
+    
+    return summary
 
 def generate_html_report(df: pd.DataFrame, stats: Dict) -> str:
     """Generate a simple HTML report summary."""
