@@ -141,7 +141,15 @@ def get_ip_info(ip_str: str) -> str:
         if ip.is_reserved:
             return "Reserved"
             
-        return "Public Internet"
+        # Try dynamic resolution for public IPs
+        try:
+            # Short timeout to prevent UI blocking
+            socket.setdefaulttimeout(0.5)
+            hostname, _, _ = socket.gethostbyaddr(ip_str)
+            return f"{hostname} (Public)"
+        except (socket.herror, socket.timeout):
+            return "Public Internet"
+            
     except ValueError:
         return "Unknown/Invalid"
 
@@ -176,14 +184,37 @@ def get_known_ips_table(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
         
-    # Filter for IPs in KNOWN_IPS
-    known_mask = df['ip_address'].isin(KNOWN_IPS.keys())
+    # Get categories for all unique IPs
+    unique_ips = df['ip_address'].unique()
+    ip_map = {ip: get_ip_info(ip) for ip in unique_ips}
+    
+    # Filter out generic or local categories
+    ignored_categories = [
+        "Public Internet", 
+        "Local Network (Private)", 
+        "Localhost (Loopback)", 
+        "Multicast", 
+        "Reserved",
+        "Unknown/Invalid"
+    ]
+    
+    # Create valid map for "Known" entities (Static + Resolved)
+    valid_map = {
+        ip: cat for ip, cat in ip_map.items() 
+        if cat not in ignored_categories
+    }
+    
+    if not valid_map:
+        return pd.DataFrame()
+        
+    # Filter dataframe
+    known_mask = df['ip_address'].isin(valid_map.keys())
     df_known = df[known_mask].copy()
     
     if df_known.empty:
         return pd.DataFrame()
         
-    df_known['Entity Name'] = df_known['ip_address'].map(KNOWN_IPS)
+    df_known['Entity Name'] = df_known['ip_address'].map(valid_map)
     
     summary = df_known.groupby(['ip_address', 'Entity Name']).size().reset_index(name='Alert Count')
     summary = summary.sort_values('Alert Count', ascending=False)
