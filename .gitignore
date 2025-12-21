@@ -151,3 +151,6 @@ mlartifacts/
 .streamlit/secrets.toml
 
 
+
+# Database
+anomalies.db

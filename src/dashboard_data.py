@@ -13,9 +13,10 @@ import numpy as np
 
 from .dashboard_config import (
     LOG_FILE, MODEL_DIR, LOG_PATTERNS, MAX_LOG_LINES,
-    FEATURE_NAMES, DATE_FORMAT, get_mlflow_uri
+    FEATURE_NAMES, DATE_FORMAT, get_mlflow_uri, DB_FILE
 )
 from .logger_setup import logger
+from .db_manager import DBManager
 
 
 @dataclass
@@ -42,9 +43,16 @@ class AnomalyDataLoader:
         """Initialize the data loader.
         
         Args:
-            log_file: Path to anomaly detection log file
+            log_file: Path to anomaly detection log file (kept for backward compatibility)
         """
         self.log_file = Path(log_file)
+        # Initialize DB Manager
+        try:
+            self.db_manager = DBManager(str(DB_FILE))
+        except Exception as e:
+            logger.error(f"Failed to init DB manager for dashboard: {e}")
+            self.db_manager = None
+            
         self._cache: Optional[List[AnomalyRecord]] = None
         self._cache_time: Optional[datetime] = None
 
@@ -54,7 +62,7 @@ class AnomalyDataLoader:
         end_date: Optional[datetime] = None,
         max_records: int = MAX_LOG_LINES
     ) -> pd.DataFrame:
-        """Load anomaly records from log file.
+        """Load anomaly records from database.
         
         Args:
             start_date: Filter anomalies after this date
@@ -64,24 +72,28 @@ class AnomalyDataLoader:
         Returns:
             DataFrame with anomaly records
         """
-        records = self._parse_log_file(max_records)
-        
-        # Filter by date range
-        if start_date:
-            records = [r for r in records if r.timestamp >= start_date]
-        if end_date:
-            records = [r for r in records if r.timestamp <= end_date]
+        if not self.db_manager:
+            return pd.DataFrame()
+            
+        # Fetch from DB
+        records = self.db_manager.get_anomalies(
+            start_date=start_date,
+            end_date=end_date,
+            limit=max_records
+        )
         
         if not records:
-            # Return empty DataFrame with correct schema
+             # Return empty DataFrame with correct schema
             return pd.DataFrame(columns=[
                 'timestamp', 'ip_address', 'anomaly_score', 
                 'alert_type', 'description'
             ])
-        
+
         # Convert to DataFrame
-        df = pd.DataFrame([r.to_dict() for r in records])
-        df = df.sort_values('timestamp', ascending=False)
+        df = pd.DataFrame(records)
+        
+        # Ensure timestamp is datetime
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
         
         return df
 
@@ -187,35 +199,34 @@ class AnomalyDataLoader:
         return self.load_anomalies(start_date=start_date)
 
     def get_anomaly_stats(self) -> Dict[str, any]:
-        """Get summary statistics about anomalies.
-        
-        Returns:
-            Dictionary with statistics
-        """
-        df = self.load_anomalies()
-        
-        if df.empty:
+        """Get summary statistics about anomalies."""
+        if not self.db_manager:
             return {
-                "total_anomalies": 0,
-                "ml_anomalies": 0,
-                "rule_anomalies": 0,
-                "unique_ips": 0,
-                "avg_score": 0.0,
-                "min_score": 0.0,
-                "max_score": 0.0,
+                "total_anomalies": 0, "ml_anomalies": 0, "rule_anomalies": 0,
+                "unique_ips": 0, "avg_score": 0.0, "min_score": 0.0, "max_score": 0.0
             }
+            
+        # Get basic counts from DB (fast)
+        stats = self.db_manager.get_stats()
         
-        ml_anomalies = df[df['alert_type'] == 'ML']
+        # Get score stats (requires querying entries)
+        # Optimization: Create a specific DB query for this later if needed
+        # For now, just query ML entries to calc stats
+        ml_df = self.load_anomalies(max_records=1000) # Only recent ones for speed? Or all?
+        ml_df = ml_df[ml_df['alert_type'] == 'ML']
         
-        return {
-            "total_anomalies": len(df),
-            "ml_anomalies": len(ml_anomalies),
-            "rule_anomalies": len(df) - len(ml_anomalies),
-            "unique_ips": df['ip_address'].nunique(),
-            "avg_score": ml_anomalies['anomaly_score'].mean() if len(ml_anomalies) > 0 else 0.0,
-            "min_score": ml_anomalies['anomaly_score'].min() if len(ml_anomalies) > 0 else 0.0,
-            "max_score": ml_anomalies['anomaly_score'].max() if len(ml_anomalies) > 0 else 0.0,
-        }
+        if not ml_df.empty:
+            stats.update({
+                "avg_score": ml_df['anomaly_score'].mean(),
+                "min_score": ml_df['anomaly_score'].min(),
+                "max_score": ml_df['anomaly_score'].max(),
+            })
+        else:
+             stats.update({
+                "avg_score": 0.0, "min_score": 0.0, "max_score": 0.0
+            })
+            
+        return stats
 
     def get_raw_logs(self, lines: int = 100) -> str:
         """Get the last N lines of the log file as a string.

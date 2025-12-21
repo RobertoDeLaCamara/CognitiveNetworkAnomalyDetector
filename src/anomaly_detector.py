@@ -12,6 +12,7 @@ from .logger_setup import logger
 from .payload_analyzer import detect_malicious_payload
 from .config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD
 from .resource_monitor import resource_monitor
+from .db_manager import DBManager
 
 # ML imports
 try:
@@ -107,6 +108,7 @@ class PacketAnalyzer:
             max_ips = 5000
             logger.warning("IP limit capped at 5000 for security")
             
+        self.db_manager = DBManager()
         self.packet_count_per_ip = defaultdict(int)
         self.packet_rate_per_ip = defaultdict(lambda: deque(maxlen=10))
         self.start_time = time.time()
@@ -256,8 +258,20 @@ class PacketAnalyzer:
         safe_type = alert_type if alert_type in ["RULE", "ML"] else "UNKNOWN"
         
         log_message = f"[{safe_type}] {safe_subject} - {safe_body}"
+        log_message = f"[{safe_type}] {safe_subject} - {safe_body}"
         logger.info(log_message)
         print(f"[ALERT] {log_message}")
+
+        # Persist to database
+        try:
+            self.db_manager.add_anomaly(
+                ip_address=ip_src if ip_src else "unknown",
+                alert_type=safe_type,
+                description=f"{safe_subject} - {safe_body}",
+                anomaly_score=0.0 # Default for rules
+            )
+        except Exception as e:
+            logger.error(f"Failed to persist alert to DB: {e}")
     
     def log_ml_alert(self, ip: str, anomaly_score: float, features) -> None:
         """Log ML-detected anomalies with input validation.
@@ -281,6 +295,26 @@ class PacketAnalyzer:
             f"Total packets: {self.packet_count_per_ip.get(ip, 0)}"
         )
         self.log_alert(alert_subject, alert_body, alert_type="ML", ip_src=ip)
+        
+        # Update DB with specific ML score
+        # Note: redundant insert here but handled for simplicity. 
+        # Ideally, refactor log_alert to accept optional score.
+        # For now, we will just let log_alert save it with score 0.0 and update it here?
+        # Better: Pass score through log_alert if we refactored it.
+        # Minimal change approach: Overwrite the last insert? No, easier to just accept the 0.0 for now 
+        # or separate the DB call.
+        
+        # Actually, let's just do a specific DB insert for ML here to get the score right
+        try:
+             self.db_manager.add_anomaly(
+                ip_address=safe_ip,
+                alert_type="ML",
+                description=alert_body,
+                anomaly_score=anomaly_score,
+                raw_data={"features": features.tolist() if hasattr(features, 'tolist') else features}
+            )
+        except Exception as e:
+            logger.error(f"Failed to persist ML alert to DB: {e}")
     
     def analyze_packet(self, packet) -> None:
         """Analyze a single packet for anomalies with comprehensive validation.
