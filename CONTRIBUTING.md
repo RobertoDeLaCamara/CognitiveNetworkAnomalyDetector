@@ -24,11 +24,11 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ```bash
 # Fork on GitHub, then clone your fork
-git clone https://github.com/YOUR_USERNAME/DetectorAnomalias.git
+git clone https://github.com/YOUR_USERNAME/CognitiveNetworkAnomalyDetector.git
 cd cognitive-anomaly-detector
 
 # Add upstream remote
-git remote add upstream https://github.com/RobertoDeLaCamara/DetectorAnomalias.git
+git remote add upstream https://github.com/RobertoDeLaCamara/CognitiveNetworkAnomalyDetector.git
 ```
 
 ### 2. Set Up Development Environment
