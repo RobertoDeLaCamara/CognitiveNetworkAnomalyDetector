@@ -26,7 +26,7 @@ A production-ready network anomaly detection system with **dual detection** (rul
 
 ```bash
 # Clone repository
-git clone https://github.com/RobertoDeLaCamara/DetectorAnomalias.git
+git clone https://github.com/RobertoDeLaCamara/CognitiveNetworkAnomalyDetector.git
 cd cognitive-anomaly-detector
 
 # Create virtual environment
