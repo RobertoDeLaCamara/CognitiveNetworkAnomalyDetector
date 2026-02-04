@@ -1,6 +1,6 @@
 # Cognitive Anomaly Detector
 
-A production-ready network anomaly detection system with **dual detection** (rule-based + ML-based) and **centralized experiment tracking** via MLflow.
+A production-ready network anomaly detection system with **triple detection** (rule-based + Isolation Forest + LSTM Autoencoder) and **centralized experiment tracking** via MLflow.
 
 ## Features
 
@@ -11,7 +11,14 @@ A production-ready network anomaly detection system with **dual detection** (rul
 - **MLflow integration**: Experiment tracking and model registry
 - **Remote infrastructure**: MLflow server + MinIO S3 storage support
 - **Model versioning**: Track, compare, and manage model versions
-- **Comprehensive testing**: 36+ tests with high coverage
+- **Comprehensive testing**: 170+ tests with high coverage
+
+### ✅ Phase 2: LSTM Autoencoder (COMPLETED)
+- **LSTM Autoencoder model**: Deep learning for sequential anomaly detection
+- **Temporal pattern recognition**: Captures traffic patterns over time
+- **Reconstruction-based detection**: Anomalies have high reconstruction error
+- **Complementary to Isolation Forest**: Better at detecting slow attacks and gradual changes
+- **PyTorch implementation**: GPU-accelerated training when available
 
 ### 🔬 MLflow Experiment Tracking
 - **Centralized tracking**: All experiments logged to remote MLflow server
@@ -68,14 +75,34 @@ python train_model.py --from-file data/training/synthetic_baseline.csv --version
 sudo python train_model.py --duration 60 --version 1
 ```
 
-### 4. Run Detector
+### 4. Train LSTM Autoencoder (Optional)
+
+For enhanced temporal pattern detection:
+
+```bash
+# Train LSTM Autoencoder with synthetic data
+python train_lstm_model.py --from-file data/training/synthetic_baseline.csv
+
+# Or with live traffic (requires more samples)
+sudo python train_lstm_model.py --duration 300
+
+# Custom parameters
+python train_lstm_model.py --from-file data.csv --epochs 100 --hidden-dim 128 --sequence-length 30
+```
+
+**LSTM Autoencoder advantages over Isolation Forest:**
+- Captures temporal dependencies in traffic sequences
+- Better at detecting slow attacks and gradual anomalies
+- Learns complex sequential patterns (connection bursts, timing attacks)
+
+### 5. Run Detector
 
 ```bash
 # Start anomaly detection with trained model
 sudo python main.py
 ```
 
-### 5. Launch Dashboard (Optional)
+### 6. Launch Dashboard (Optional)
 
 Visualize anomalies in real-time with the Streamlit dashboard:
 

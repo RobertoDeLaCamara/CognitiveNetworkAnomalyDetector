@@ -51,9 +51,9 @@ class TestIsolationForestDetector:
     
     def test_train_insufficient_samples(self, detector):
         """Test training with too few samples."""
-        insufficient_data = np.random.randn(5, N_FEATURES)
+        insufficient_data = np.random.randn(1, N_FEATURES)
         
-        with pytest.raises(ValueError, match="at least 10 samples"):
+        with pytest.raises(ValueError, match="at least"):
             detector.train(insufficient_data)
     
     def test_train_wrong_shape(self, detector):

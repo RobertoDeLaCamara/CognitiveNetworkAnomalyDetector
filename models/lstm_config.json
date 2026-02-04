@@ -1,0 +1,10 @@
+{
+  "sequence_length": 20,
+  "hidden_dim": 64,
+  "latent_dim": 32,
+  "num_layers": 2,
+  "dropout": 0.2,
+  "n_features": 18,
+  "threshold": 1.1036977231502532,
+  "saved_at": "2026-02-04T19:58:48.383248"
+}
