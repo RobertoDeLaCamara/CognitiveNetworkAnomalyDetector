@@ -1,0 +1,143 @@
+stages:
+  - setup
+  - quality
+  - test
+  - analysis
+  - gate
+
+variables:
+  SONAR_PROJECT_KEY: "MiProyectoPrueba"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+
+cache:
+  paths:
+    - .pip-cache/
+    - venv/
+
+# ============ SETUP ============
+setup:
+  stage: setup
+  image: python:3.11-slim
+  script:
+    - python --version
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest pytest-cov coverage flake8 safety
+  artifacts:
+    paths:
+      - venv/
+    expire_in: 1 hour
+
+# ============ QUALITY CHECKS ============
+lint:
+  stage: quality
+  image: python:3.11-slim
+  needs: ["setup"]
+  script:
+    - source venv/bin/activate
+    - flake8 src/ --max-line-length=120 --exclude=venv --output-file=flake8-report.txt || true
+  artifacts:
+    paths:
+      - flake8-report.txt
+    expire_in: 1 week
+  allow_failure: true
+
+security:
+  stage: quality
+  image: python:3.11-slim
+  needs: ["setup"]
+  script:
+    - source venv/bin/activate
+    - safety check -r requirements.txt --full-report --output safety-report.txt || true
+  artifacts:
+    paths:
+      - safety-report.txt
+    expire_in: 1 week
+  allow_failure: true
+
+# ============ TESTS ============
+test:
+  stage: test
+  image: python:3.11-slim
+  needs: ["setup"]
+  script:
+    - source venv/bin/activate
+    - mkdir -p test-results
+    - |
+      pytest tests/ -v \
+        --junitxml=test-results/junit.xml \
+        --cov=src \
+        --cov-report=xml:coverage.xml \
+        --cov-report=html:htmlcov \
+        --cov-report=term-missing
+    - coverage report
+  artifacts:
+    paths:
+      - coverage.xml
+      - test-results/
+      - htmlcov/
+    reports:
+      junit: test-results/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 1 week
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+
+# ============ SONARQUBE ============
+sonarqube:
+  stage: analysis
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  needs: ["test"]
+  variables:
+    SONAR_HOST_URL: "http://192.168.1.86:9000"
+    SONAR_TOKEN: "${SONAR_TOKEN}"  # Configurar en GitLab CI/CD Variables
+  script:
+    - |
+      sonar-scanner \
+        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+        -Dsonar.projectName='Cognitive Anomaly Detector' \
+        -Dsonar.sources=src \
+        -Dsonar.tests=tests \
+        -Dsonar.python.coverage.reportPaths=coverage.xml \
+        -Dsonar.python.xunit.reportPath=test-results/junit.xml \
+        -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/htmlcov/**,**/*.pyc \
+        -Dsonar.coverage.exclusions=**/tests/**,**/test_*.py \
+        -Dsonar.qualitygate.wait=true \
+        -Dsonar.qualitygate.timeout=300
+  allow_failure: true
+
+# ============ QUALITY GATE ============
+quality_gate:
+  stage: gate
+  image: curlimages/curl:latest
+  needs: ["sonarqube"]
+  script:
+    - |
+      echo "Checking Quality Gate status..."
+      STATUS=$(curl -s -u "${SONAR_TOKEN}:" \
+        "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}" \
+        | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+      echo "Quality Gate Status: $STATUS"
+      if [ "$STATUS" != "OK" ]; then
+        echo "Quality Gate failed!"
+        exit 1
+      fi
+  allow_failure: true
+
+# ============ PAGES (Coverage Report) ============
+pages:
+  stage: gate
+  needs: ["test"]
+  script:
+    - mv htmlcov public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+    - main
