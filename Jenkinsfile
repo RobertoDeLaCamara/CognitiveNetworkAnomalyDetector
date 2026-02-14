@@ -10,6 +10,10 @@ pipeline {
         VENV_DIR = 'venv'
         // PATH con python agregado
         PATH = "${env.PATH}:/usr/bin:/usr/local/bin"
+        
+        // Bypass proxy for local network and registry
+        NO_PROXY = 'localhost,127.0.0.1,192.168.1.0/24,192.168.1.86,192.168.1.62'
+        no_proxy = 'localhost,127.0.0.1,192.168.1.0/24,192.168.1.86,192.168.1.62'
     }
     
     stages {
@@ -102,15 +106,32 @@ pipeline {
                 echo 'Generating coverage report...'
                 sh '''
                     . $VENV_DIR/bin/activate
-                    
-                    # Display coverage summary
                     coverage report
-                    
-                    # Check minimum coverage threshold (85%)
-                    coverage report --fail-under=85 || {
-                        echo "WARNING: Test coverage is below 85%"
-                    }
                 '''
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    echo 'Building Docker Image...'
+                    // Usamos el registro local del PC
+                    def registry = "192.168.1.86:5000"
+                    def imageName = "cognitive-anomaly-detector"
+                    def imageTag = "latest"
+                    
+                    sh "docker build -t ${registry}/${imageName}:${imageTag} ."
+                    echo 'Pushing to Local Registry...'
+                    sh "docker push ${registry}/${imageName}:${imageTag}"
+                }
+            }
+        }
+
+        stage('Deploy (Portainer)') {
+            steps {
+                echo 'Triggering Portainer Webhook...'
+                // NOTA: Reemplaza TU_WEBHOOK_ID con el ID generado en Portainer (Stacks -> Settings -> Webhooks)
+                sh 'curl -X POST http://192.168.1.86:9000/api/stacks/webhooks/TU_WEBHOOK_ID || echo "Webhook failed or not configured"'
             }
         }
     }
