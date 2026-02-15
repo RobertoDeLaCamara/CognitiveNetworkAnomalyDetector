@@ -27,11 +27,19 @@ try:
         SCALER_MODEL_PATH,
         MODEL_DIR
     )
+    from .ensemble_scorer import EnsembleScorer, EngineResult
     ML_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"ML components not available: {e}")
     ML_AVAILABLE = False
     ML_ENABLED = False
+
+# LSTM imports (optional — model may not be trained yet)
+try:
+    from .lstm_autoencoder_detector import LSTMAutoencoderDetector, LSTM_MODEL_PATH
+    LSTM_AVAILABLE = True
+except ImportError:
+    LSTM_AVAILABLE = False
 
 # Build absolute paths for model files
 def _get_model_path(relative_path: str) -> str:
@@ -133,7 +141,9 @@ class PacketAnalyzer:
         # ML components
         self.feature_extractor = None
         self.ml_detector = None
-        
+        self.lstm_detector = None
+        self.ensemble_scorer = None
+
         if self.ml_enabled:
             try:
                 self.feature_extractor = FeatureExtractor()
@@ -175,6 +185,25 @@ class PacketAnalyzer:
                             "ML detection will be disabled."
                         )
                         self.ml_enabled = False
+                # Initialize LSTM detector (optional)
+                if LSTM_AVAILABLE:
+                    try:
+                        self.lstm_detector = LSTMAutoencoderDetector()
+                        if os.path.exists(LSTM_MODEL_PATH):
+                            loaded = self.lstm_detector.load()
+                            if not loaded:
+                                logger.warning("LSTM model failed to load, disabling LSTM engine")
+                                self.lstm_detector = None
+                        else:
+                            logger.info("No LSTM model found, LSTM engine disabled")
+                            self.lstm_detector = None
+                    except Exception as lstm_e:
+                        logger.warning(f"Failed to initialize LSTM detector: {lstm_e}")
+                        self.lstm_detector = None
+
+                # Initialize ensemble scorer
+                self.ensemble_scorer = EnsembleScorer()
+
             except Exception as e:
                 logger.error(f"Failed to initialize ML detector: {e}")
                 self.ml_enabled = False
@@ -248,37 +277,44 @@ class PacketAnalyzer:
         avg_rate = statistics.mean(rates) if rates else 0.0
         return rate, avg_rate
     
-    def log_alert(self, subject: str, body: str, alert_type: str = "RULE", ip_src: str = None) -> None:
+    def log_alert(self, subject: str, body: str, alert_type: str = "RULE",
+                  ip_src: str = None, anomaly_score: float = 0.0,
+                  raw_data: dict = None) -> None:
         """Log alerts to file and console with rate limiting.
-        
+
         Args:
             subject: Alert subject line
             body: Alert details
-            alert_type: Type of alert ("RULE" or "ML")
+            alert_type: Type of alert ("RULE", "ML", or "ML_ENSEMBLE")
             ip_src: Source IP address (for rate limiting)
+            anomaly_score: Score from the detection engine
+            raw_data: Optional raw data dict to persist
         """
         # Rate limit alerts if IP is provided
         if ip_src and not self._should_alert(ip_src, alert_type):
             return
-            
+
         # Sanitize inputs for logging
         safe_subject = subject[:200] if subject else "Unknown Alert"
         safe_body = body[:500] if body else "No details"
-        safe_type = alert_type if alert_type in ["RULE", "ML"] else "UNKNOWN"
-        
-        log_message = f"[{safe_type}] {safe_subject} - {safe_body}"
+        valid_types = {"RULE", "ML", "ML_ENSEMBLE", "ICMP_FLOOD"}
+        safe_type = alert_type if alert_type in valid_types else "UNKNOWN"
+
         log_message = f"[{safe_type}] {safe_subject} - {safe_body}"
         logger.info(log_message)
         print(f"[ALERT] {log_message}")
 
         # Persist to database
         try:
-            self.db_manager.add_anomaly(
+            kwargs = dict(
                 ip_address=ip_src if ip_src else "unknown",
                 alert_type=safe_type,
                 description=f"{safe_subject} - {safe_body}",
-                anomaly_score=0.0 # Default for rules
+                anomaly_score=anomaly_score,
             )
+            if raw_data is not None:
+                kwargs["raw_data"] = raw_data
+            self.db_manager.add_anomaly(**kwargs)
         except Exception as e:
             logger.error(f"Failed to persist alert to DB: {e}")
     
@@ -365,25 +401,58 @@ class PacketAnalyzer:
                 return
 
             # ML-based detection (if enabled)
+            rule_fired = False  # Track whether any rule fires for this packet
             if self.ml_enabled and self.feature_extractor is not None and self.ml_detector is not None:
                 try:
                     # Process packet for feature extraction
                     self.feature_extractor.process_packet(packet)
-                    
+
                     # Only run ML inference if we have enough packets
                     current_packet_count = self.packet_count_per_ip[ip_src]
-                    # logger.info(f"Packet count for {ip_src}: {current_packet_count}/{MIN_PACKETS_FOR_ML}")
-                    
+
                     if current_packet_count >= MIN_PACKETS_FOR_ML:
                         features = self.feature_extractor.extract_features(ip_src)
-                        
+
                         if features is not None and len(features) > 0:
-                            # Make prediction
-                            prediction, anomaly_score = self.ml_detector.predict(features)
-                            
-                            # Validate prediction results (allowing numpy types)
-                            if prediction == -1 or anomaly_score < ML_ANOMALY_THRESHOLD:
-                                self.log_ml_alert(ip_src, anomaly_score, features)
+                            engine_results = []
+
+                            # Engine 1: Isolation Forest
+                            if_prediction, if_score = self.ml_detector.predict(features)
+                            if_normalized = EnsembleScorer.normalize_isolation_forest(if_score)
+                            engine_results.append(EngineResult(
+                                name="isolation_forest",
+                                raw_score=float(if_score),
+                                normalized_score=if_normalized,
+                                prediction=int(if_prediction),
+                            ))
+
+                            # Engine 2: LSTM Autoencoder (if available)
+                            if self.lstm_detector is not None:
+                                try:
+                                    lstm_pred, lstm_error = self.lstm_detector.predict_single(features)
+                                    lstm_normalized = EnsembleScorer.normalize_lstm(
+                                        lstm_error, self.lstm_detector.threshold
+                                    )
+                                    engine_results.append(EngineResult(
+                                        name="lstm",
+                                        raw_score=float(lstm_error),
+                                        normalized_score=lstm_normalized,
+                                        prediction=int(lstm_pred),
+                                    ))
+                                except Exception as lstm_e:
+                                    logger.debug(f"LSTM prediction skipped: {lstm_e}")
+
+                            # Engine 3: Rules (set after rule evaluation below)
+                            # Will be combined after rules run — see below
+
+                            # Store for post-rule ensemble combination
+                            self._pending_ensemble = {
+                                "ip_src": ip_src,
+                                "features": features,
+                                "engine_results": engine_results,
+                                "if_score": if_score,
+                                "if_prediction": if_prediction,
+                            }
                 except Exception as e:
                     # Don't let ML errors break rule-based detection
                     logger.error(f"ML detection error for {_sanitize_ip_for_logging(ip_src)}: {e}")
@@ -393,6 +462,7 @@ class PacketAnalyzer:
 
             # Detect traffic spikes
             if avg_rate > 0 and current_rate > avg_rate * THRESHOLD_MULTIPLIER:
+                rule_fired = True
                 alert_subject = f"ALERT: Traffic spike from {safe_ip}"
                 alert_body = (f"IP {safe_ip} has a traffic rate of {current_rate:.2f} packets/sec, "
                               f"which is significantly higher than the average of {avg_rate:.2f} packets/sec.")
@@ -401,6 +471,7 @@ class PacketAnalyzer:
             # Detect ICMP traffic (e.g., ping flood attack)
             if ICMP in packet:
                 if self.packet_count_per_ip[ip_src] > ICMP_THRESHOLD:
+                    rule_fired = True
                     alert_subject = f"ALERT: Possible ICMP attack (ping flood) from {safe_ip}"
                     alert_body = f"IP {safe_ip} has sent more than {ICMP_THRESHOLD} ICMP packets."
                     self.log_alert(alert_subject, alert_body, alert_type="ICMP_FLOOD", ip_src=ip_src)
@@ -409,13 +480,14 @@ class PacketAnalyzer:
             if TCP in packet or UDP in packet:
                 try:
                     dport = packet[TCP].dport if TCP in packet else packet[UDP].dport
-                    
+
                     # Validate port number
                     if not isinstance(dport, int) or not (0 <= dport <= 65535):
                         logger.warning(f"Invalid port number from {safe_ip}: {dport}")
                         return
-                        
+
                     if dport not in HIGH_TRAFFIC_PORTS:
+                        rule_fired = True
                         alert_subject = f"ALERT: Traffic on uncommon port {dport} from {safe_ip}"
                         alert_body = f"Traffic detected from IP {safe_ip} to port {dport}, which is unusual."
                         self.log_alert(alert_subject, alert_body, ip_src=ip_src)
@@ -423,15 +495,16 @@ class PacketAnalyzer:
                     # Payload analysis for unusual behavior
                     if Raw in packet:
                         payload = packet[Raw].load
-                        
+
                         if not isinstance(payload, bytes):
                             logger.warning(f"Invalid payload type from {safe_ip}")
                             return
-                            
+
                         payload_size = len(payload)
 
                         # Detect unusually large payloads
                         if payload_size > PAYLOAD_THRESHOLD:
+                            rule_fired = True
                             alert_subject = f"ALERT: Unusually large payload from {safe_ip}"
                             alert_body = f"A payload of {payload_size} bytes was detected from {safe_ip} to port {dport}."
                             self.log_alert(alert_subject, alert_body, ip_src=ip_src)
@@ -440,15 +513,48 @@ class PacketAnalyzer:
                         try:
                             is_malicious, pattern = detect_malicious_payload(payload)
                             if is_malicious and pattern:
+                                rule_fired = True
                                 alert_subject = f"ALERT: Malicious payload detected from {safe_ip}"
                                 alert_body = f"The pattern '{pattern}' was detected in traffic from {safe_ip} to port {dport}."
                                 self.log_alert(alert_subject, alert_body, ip_src=ip_src)
                         except Exception as payload_e:
                             logger.error(f"Error analyzing payload from {safe_ip}: {payload_e}")
-                            
+
                 except (AttributeError, KeyError) as e:
                     logger.error(f"Error processing packet from {safe_ip}: {e}")
-                    
+
+            # Finalize ensemble scoring (after rules have been evaluated)
+            pending = getattr(self, '_pending_ensemble', None)
+            if pending and self.ensemble_scorer is not None:
+                try:
+                    engine_results = pending["engine_results"]
+                    # Add rules engine result
+                    engine_results.append(EngineResult(
+                        name="rules",
+                        raw_score=1.0 if rule_fired else 0.0,
+                        normalized_score=EnsembleScorer.normalize_rules(rule_fired),
+                        prediction=-1 if rule_fired else 1,
+                    ))
+
+                    ensemble_result = self.ensemble_scorer.combine(engine_results)
+                    if ensemble_result.is_anomaly:
+                        alert_subject = f"ML ENSEMBLE ANOMALY: {safe_ip}"
+                        alert_body = (
+                            f"Ensemble confidence: {ensemble_result.confidence_score:.3f}. "
+                            f"Engines: {', '.join(f'{n}={r.normalized_score:.3f}' for n, r in ensemble_result.engines.items())}"
+                        )
+                        self.log_alert(
+                            alert_subject, alert_body,
+                            alert_type="ML_ENSEMBLE",
+                            ip_src=ip_src,
+                            anomaly_score=ensemble_result.confidence_score,
+                            raw_data=ensemble_result.engine_summary,
+                        )
+                except Exception as ens_e:
+                    logger.error(f"Ensemble scoring error: {ens_e}")
+                finally:
+                    self._pending_ensemble = None
+
         except Exception as e:
             logger.error(f"Error in packet analysis: {e}", exc_info=True)
 

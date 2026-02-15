@@ -133,3 +133,10 @@ MLFLOW_MODEL_STAGE = os.getenv('MLFLOW_MODEL_STAGE', 'Production')
 
 # Specific version to load (overrides stage if set)
 MLFLOW_MODEL_VERSION = os.getenv('MLFLOW_MODEL_VERSION', None)
+
+# ========== Ensemble Scoring Settings ==========
+
+ENSEMBLE_WEIGHT_IF = float(os.getenv('ENSEMBLE_WEIGHT_IF', '0.4'))
+ENSEMBLE_WEIGHT_LSTM = float(os.getenv('ENSEMBLE_WEIGHT_LSTM', '0.4'))
+ENSEMBLE_WEIGHT_RULES = float(os.getenv('ENSEMBLE_WEIGHT_RULES', '0.2'))
+ENSEMBLE_ANOMALY_THRESHOLD = float(os.getenv('ENSEMBLE_ANOMALY_THRESHOLD', '0.6'))

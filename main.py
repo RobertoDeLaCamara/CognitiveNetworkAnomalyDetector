@@ -9,6 +9,7 @@ from scapy.all import sniff
 from src.anomaly_detector import analyze_packet, packet_count_per_ip
 from src.config import MONITORING_INTERVAL
 from src.logger_setup import logger
+from src.packet_queue import PacketProcessor
 
 # Global flag for graceful shutdown
 shutdown_requested = False
@@ -82,15 +83,19 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
+    processor = PacketProcessor(callback=analyze_packet)
+
     try:
         logger.info("Starting anomaly detector")
-        
+
         # Check privileges
         check_privileges()
-        
+
+        processor.start()
+
         while not shutdown_requested:
             print(f"\nStarting local network monitoring for {monitoring_duration} seconds...")
-            
+
             # Start packet capture with error handling
             try:
                 # Additional security: validate interface exists if specified
@@ -105,9 +110,9 @@ def main():
                     except ImportError:
                         logger.warning("psutil not available - skipping interface validation")
                         print(f"Warning: Cannot validate interface '{interface}' - psutil not installed")
-                
+
                 sniff(
-                    prn=analyze_packet, 
+                    prn=processor.enqueue,
                     timeout=monitoring_duration,
                     iface=interface,
                     store=False,
@@ -121,7 +126,7 @@ def main():
                 logger.error(f"Network interface error: {e}")
                 print(f"Error: Network interface problem - {e}")
                 return 1
-            
+
             # Display summary of captured traffic
             print("\nTraffic summary:")
             if not packet_count_per_ip:
@@ -132,14 +137,19 @@ def main():
                 # Print the number of packets sent by each IP address
                 for ip, count in sorted(packet_count_per_ip.items(), key=lambda x: x[1], reverse=True):
                     print(f"IP: {ip}, Packets sent: {count}")
-            
+
+            # Print packet processor stats
+            stats = processor.stats
+            print(f"\nPacket processor: queue_size={stats['queue_size']}, "
+                  f"dropped={stats['dropped_packets']}, workers={stats['worker_count']}")
+
             if shutdown_requested:
                 break
-        
+
         print("Monitoring finished.")
         logger.info("Anomaly detector finished successfully")
         return 0
-        
+
     except KeyboardInterrupt:
         print("\nMonitoring interrupted by user")
         logger.info("Monitoring interrupted by user")
@@ -148,6 +158,8 @@ def main():
         logger.error(f"Unexpected error in main: {e}", exc_info=True)
         print(f"Error: {e}")
         return 1
+    finally:
+        processor.stop()
 
 if __name__ == "__main__":
     sys.exit(main())

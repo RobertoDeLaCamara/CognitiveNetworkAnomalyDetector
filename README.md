@@ -20,6 +20,14 @@ A production-ready network anomaly detection system with **triple detection** (r
 - **Complementary to Isolation Forest**: Better at detecting slow attacks and gradual changes
 - **PyTorch implementation**: GPU-accelerated training when available
 
+### ✅ Phase 3: Ensemble Scoring & Async Processing (COMPLETED)
+- **Ensemble confidence scoring**: Weighted combination of Isolation Forest, LSTM Autoencoder, and rule-based engines into a single 0-1 confidence score
+- **Configurable engine weights**: Tune via `ENSEMBLE_WEIGHT_IF`, `ENSEMBLE_WEIGHT_LSTM`, `ENSEMBLE_WEIGHT_RULES` env vars
+- **Dynamic weight redistribution**: When an engine has no data (e.g. LSTM buffer not full), its weight is redistributed to active engines
+- **Async packet processing**: Decouples Scapy capture from ML inference via a bounded queue with configurable worker threads (`PACKET_WORKERS`, `PACKET_QUEUE_SIZE`)
+- **Thread-safe LSTM buffer**: Buffer operations protected by a lock for safe multi-threaded access
+- **Drop counting**: Tracks packets dropped when the processing queue is full
+
 ### 🔬 MLflow Experiment Tracking
 - **Centralized tracking**: All experiments logged to remote MLflow server
 - **Artifact storage**: Models and training data stored in MinIO S3
@@ -245,13 +253,15 @@ sudo python main.py --duration 120
 ```
 Starting network monitoring...
 [INFO] ML detector loaded successfully (version 1)
-[ALERT] [ML] ML ANOMALY: 192.168.1.50 - Score: -0.234
+[ALERT] [ML_ENSEMBLE] ML ENSEMBLE ANOMALY: 192.168.1.50 - Ensemble confidence: 0.782. Engines: isolation_forest=0.800, lstm=0.650, rules=1.000
 [ALERT] [RULE] Traffic spike from 192.168.1.100 - Rate: 45.2 pkt/s
 [ALERT] [RULE] Uncommon port 8888 from 192.168.1.75
 
 Traffic summary:
 IP: 192.168.1.45, Packets: 345
 IP: 142.250.110.81, Packets: 182
+
+Packet processor: queue_size=0, dropped=0, workers=2
 ```
 
 ## Configuration
@@ -263,6 +273,12 @@ MIN_PACKETS_FOR_ML = 10              # Min packets before ML inference
 ML_ANOMALY_THRESHOLD = 0.0          # Anomaly score threshold (adjusted for sensitivity)
 CONTAMINATION = 0.01                 # Expected anomaly rate (1%)
 N_ESTIMATORS = 100                   # Number of trees in forest
+
+# Ensemble scoring weights (also configurable via env vars)
+ENSEMBLE_WEIGHT_IF = 0.4             # Isolation Forest weight
+ENSEMBLE_WEIGHT_LSTM = 0.4           # LSTM Autoencoder weight
+ENSEMBLE_WEIGHT_RULES = 0.2          # Rule-based weight
+ENSEMBLE_ANOMALY_THRESHOLD = 0.6     # Combined score threshold
 ```
 
 ### Rule-Based Settings (`src/config.py`)
@@ -315,17 +331,20 @@ pytest tests/ --cov=src --cov-report=term-missing
 ```
 cognitive-anomaly-detector/
 ├── src/
-│   ├── anomaly_detector.py         # Dual detection engine
+│   ├── anomaly_detector.py         # Triple detection engine (rules + IF + LSTM ensemble)
 │   ├── config.py                   # General configuration
 │   ├── dashboard_config.py         # Dashboard settings
 │   ├── dashboard_data.py           # Dashboard data management
 │   ├── dashboard_extensions.py     # Dashboard additional charts
+│   ├── ensemble_scorer.py          # Weighted ensemble scoring across engines
 │   ├── feature_extractor.py        # 18-feature extraction
-│   ├── isolation_forest_detector.py # ML model implementation
+│   ├── isolation_forest_detector.py # Isolation Forest model
 │   ├── logger_setup.py             # Logging setup
-│   ├── ml_config.py                # ML settings
+│   ├── lstm_autoencoder_detector.py # LSTM Autoencoder model (thread-safe)
+│   ├── ml_config.py                # ML & ensemble settings
 │   ├── mlflow_config.py            # MLflow configuration
 │   ├── model_trainer.py            # Training pipeline with MLflow
+│   ├── packet_queue.py             # Async packet processing queue
 │   ├── payload_analyzer.py         # Pattern matching
 │   ├── resource_monitor.py         # Resource usage tracking
 │   ├── security_config.py          # Security settings
@@ -333,12 +352,14 @@ cognitive-anomaly-detector/
 │   └── visualization_utils.py      # Plotting helpers
 ├── tests/
 │   ├── test_anomaly_detector_new.py # Detection engine tests
+│   ├── test_ensemble_scorer.py     # Ensemble scoring tests
 │   ├── test_feature_extractor.py   # Feature tests
 │   ├── test_integration.py         # E2E tests
 │   ├── test_isolation_forest.py    # ML model tests
 │   ├── test_logger_setup.py        # Logger tests
 │   ├── test_mlflow_config.py       # MLflow config tests
 │   ├── test_mlflow_integration.py  # MLflow tests
+│   ├── test_packet_queue.py        # Async packet queue tests
 │   ├── test_payload_analyzer.py    # Pattern tests
 │   ├── test_payload_analyzer_fixed.py # Fixed pattern tests
 │   └── test_security_config.py     # Security config tests
@@ -373,7 +394,7 @@ cognitive-anomaly-detector/
 
 ## How It Works
 
-### Dual Detection System
+### Triple Detection System
 
 **1. Rule-Based Detection**
 - Traffic rate spikes (2x average)
@@ -391,10 +412,17 @@ cognitive-anomaly-detector/
 - **Port**: unique ports, uncommon port ratio (2 features)
 - **Payload**: entropy, size statistics (3 features)
 
-**Anomaly Scoring**:
-- Isolation Forest assigns scores (-1 to 1)
-- Lower scores = more anomalous behavior
-- Threshold-based alerting (configurable)
+**3. LSTM Autoencoder Detection**
+- Temporal pattern recognition on sliding windows of features
+- Reconstruction-error based scoring — higher error = more anomalous
+- Thread-safe sequence buffer for real-time per-packet prediction
+
+**Ensemble Scoring**:
+All three engines are combined via configurable weighted averaging:
+- Isolation Forest (default 40%), LSTM Autoencoder (40%), Rules (20%)
+- Combined confidence score 0–1, threshold-configurable (`ENSEMBLE_ANOMALY_THRESHOLD`, default 0.6)
+- When an engine is unavailable, its weight is redistributed to active engines
+- Alerts of type `ML_ENSEMBLE` include per-engine scores in raw data
 
 **Model Lifecycle**:
 1. Train on baseline normal traffic
@@ -402,6 +430,18 @@ cognitive-anomaly-detector/
 3. Version models in registry
 4. Load for real-time detection
 5. Continuous monitoring and improvement
+
+### Async Packet Processing
+
+The Scapy capture callback enqueues packets into a bounded queue processed by worker threads, preventing ML inference from blocking packet capture:
+
+```
+[Scapy sniff] → [PacketProcessor queue] → [Worker threads] → [analyze_packet]
+```
+
+- Configurable via `PACKET_WORKERS` (default 2) and `PACKET_QUEUE_SIZE` (default 10000)
+- Drops packets when queue is full and tracks drop count
+- Stats printed in traffic summary after each capture period
 
 ## MLflow Features
 
@@ -432,16 +472,17 @@ cognitive-anomaly-detector/
   - Remote server support
   - Model versioning
 
-- ⏳ **Phase 2: Advanced Models**
-  - LSTM networks for sequential analysis
-  - Autoencoder for unsupervised detection
-  - Ensemble meta-learning
-  
-- 📋 **Phase 3: Production Features**
-  - ✅ **Real-time dashboard** (COMPLETED)
+- ✅ **Phase 2: Advanced Models** (COMPLETED)
+  - LSTM Autoencoder for sequential analysis
+  - Ensemble confidence scoring across all engines
+  - Configurable weighted combination with dynamic redistribution
+
+- ✅ **Phase 3: Production Features** (COMPLETED)
+  - ✅ **Real-time dashboard**
+  - ✅ **Async packet processing** with bounded queue and worker threads
+  - ✅ **Thread-safe LSTM buffer** for concurrent access
   - Automated retraining
   - A/B testing framework
-  - Alert management system
 
 ## Documentation
 

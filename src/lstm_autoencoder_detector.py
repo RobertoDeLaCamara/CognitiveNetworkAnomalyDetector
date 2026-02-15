@@ -15,6 +15,7 @@ Advantages over Isolation Forest:
 
 import os
 import json
+import threading
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -62,7 +63,7 @@ except ImportError:
 # ========== Model Configuration ==========
 
 # Sequence length (number of time steps to consider)
-SEQUENCE_LENGTH = int(os.getenv('LSTM_SEQUENCE_LENGTH', 20))
+SEQUENCE_LENGTH = int(os.getenv('LSTM_SEQUENCE_LENGTH', 50))
 
 # LSTM hidden dimensions
 HIDDEN_DIM = int(os.getenv('LSTM_HIDDEN_DIM', 64))
@@ -269,7 +270,8 @@ class LSTMAutoencoderDetector:
         
         # Sequence buffer for real-time detection
         self.sequence_buffer: deque = deque(maxlen=sequence_length)
-        
+        self._buffer_lock = threading.Lock()
+
         logger.info(f"LSTMAutoencoderDetector initialized (device: {self.device})")
     
     def _create_model(self) -> LSTMAutoencoder:
@@ -513,34 +515,33 @@ class LSTMAutoencoderDetector:
     
     def predict_single(self, feature_vector: np.ndarray) -> Tuple[int, float]:
         """Add a feature vector to buffer and predict if anomaly.
-        
+
+        Thread-safe: buffer operations are protected by a lock.
+
         Args:
             feature_vector: Single feature vector of shape (n_features,)
-            
+
         Returns:
             prediction: -1 (anomaly), 1 (normal), or 0 (insufficient data)
             error: Reconstruction error (0 if insufficient data)
         """
         if not self.is_trained:
             raise RuntimeError("Model not trained. Call train() first.")
-        
-        # Add to buffer
-        self.sequence_buffer.append(feature_vector)
-        
-        # Check if we have enough data
-        if len(self.sequence_buffer) < self.sequence_length:
-            return 0, 0.0
-        
-        # Create sequence from buffer
-        sequence = np.array(list(self.sequence_buffer))
+
+        with self._buffer_lock:
+            self.sequence_buffer.append(feature_vector)
+            if len(self.sequence_buffer) < self.sequence_length:
+                return 0, 0.0
+            sequence = np.array(list(self.sequence_buffer))
+
         sequence_scaled = self.scaler.transform(sequence)
         sequence_tensor = torch.FloatTensor(sequence_scaled).unsqueeze(0).to(self.device)
-        
+
         # Predict
         self.model.eval()
         error = self.model.get_reconstruction_error(sequence_tensor).item()
         prediction = -1 if error > self.threshold else 1
-        
+
         return prediction, error
     
     def save(self, path: Optional[str] = None) -> str:
