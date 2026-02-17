@@ -85,6 +85,26 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Running SonarQube analysis...'
+                sh '''
+                    docker run --rm \
+                        -v "$(pwd):/usr/src" \
+                        sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=cognitive-anomaly-detector \
+                        -Dsonar.sources=src \
+                        -Dsonar.tests=tests \
+                        -Dsonar.python.version=3.11 \
+                        -Dsonar.python.coverage.reportPaths=coverage.xml \
+                        -Dsonar.host.url=http://192.168.1.86:9000 \
+                        -Dsonar.login=admin \
+                        -Dsonar.password=patilla1 \
+                        -Dsonar.scm.disabled=true
+                '''
+            }
+        }
+
         stage('Push to Registry') {
             steps {
                 echo "Pushing image to ${REGISTRY}..."
