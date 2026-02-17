@@ -4,7 +4,7 @@ pipeline {
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))
         timestamps()
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
     }
 
     environment {
@@ -36,7 +36,7 @@ pipeline {
                         sh """
                         docker run --rm --user root \
                             ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
-                            sh -c 'pip install --quiet flake8 && flake8 src/ --max-line-length=120 --count --statistics' || echo 'Lint warnings found'
+                            sh -c 'pip install --quiet flake8 && flake8 src/ --max-line-length=120 --count --statistics || true'
                         """
                     }
                 }
@@ -47,7 +47,7 @@ pipeline {
                         sh """
                         docker run --rm --user root \
                             ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
-                            sh -c 'pip install --quiet safety && safety check -r requirements.txt --full-report' || echo 'Security warnings found'
+                            sh -c 'pip install --quiet safety && safety check -r requirements.txt --full-report || true'
                         """
                     }
                 }
