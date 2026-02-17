@@ -28,9 +28,35 @@ pipeline {
             }
         }
 
+        stage('Code Quality Checks') {
+            parallel {
+                stage('Lint') {
+                    steps {
+                        echo 'Running code quality checks...'
+                        sh """
+                        docker run --rm --user root \
+                            ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
+                            sh -c 'pip install --quiet flake8 && flake8 src/ --max-line-length=120 --count --statistics' || echo 'Lint warnings found'
+                        """
+                    }
+                }
+
+                stage('Security Checks') {
+                    steps {
+                        echo 'Checking for security vulnerabilities...'
+                        sh """
+                        docker run --rm --user root \
+                            ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
+                            sh -c 'pip install --quiet safety && safety check -r requirements.txt --full-report' || echo 'Security warnings found'
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Run Tests') {
             steps {
-                echo 'Running tests inside container...'
+                echo 'Running test suite with coverage...'
                 script {
                     try {
                         sh """
@@ -39,10 +65,14 @@ pipeline {
                             ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
                             python -m pytest tests/ -v \
                                 --junitxml=test-results.xml \
+                                --cov=src \
+                                --cov-report=xml:coverage.xml \
+                                --cov-report=term-missing \
                                 --disable-warnings
                         """
                     } finally {
                         sh "docker cp test-cad-\${BUILD_NUMBER}:/app/test-results.xml \${WORKSPACE}/test-results.xml || true"
+                        sh "docker cp test-cad-\${BUILD_NUMBER}:/app/coverage.xml \${WORKSPACE}/coverage.xml || true"
                         sh "docker rm test-cad-\${BUILD_NUMBER} || true"
                     }
                 }
@@ -50,6 +80,7 @@ pipeline {
             post {
                 always {
                     junit allowEmptyResults: true, testResults: 'test-results.xml'
+                    archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true, fingerprint: true
                 }
             }
         }
@@ -65,7 +96,7 @@ pipeline {
 
     post {
         always {
-            sh 'rm -f test-results.xml || true'
+            sh 'rm -f test-results.xml coverage.xml || true'
             sh "docker rmi ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} || true"
         }
         success {
