@@ -1,189 +1,78 @@
 pipeline {
     agent any
-    
-    // The empty 'tools' block was removed here to fix the syntax error.
-    
-    environment {
-        // Python command - intentará usar python3, python, o la versión configurada en tools
-        PYTHON = 'python3'
-        // Virtual environment directory
-        VENV_DIR = 'venv'
-        // PATH con python agregado
-        PATH = "${env.PATH}:/usr/bin:/usr/local/bin"
-        
-        // Bypass proxy for local network and registry
-        NO_PROXY = 'localhost,127.0.0.1,192.168.1.0/24,192.168.1.86,192.168.1.62'
-        no_proxy = 'localhost,127.0.0.1,192.168.1.0/24,192.168.1.86,192.168.1.62'
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
     }
-    
+
+    environment {
+        REGISTRY = "192.168.1.86:5000"
+        IMAGE_NAME = "cognitive-anomaly-detector"
+        NO_PROXY = 'localhost,127.0.0.1,192.168.1.0/24,192.168.1.86,192.168.1.62,192.168.1.45'
+        no_proxy = 'localhost,127.0.0.1,192.168.1.0/24,192.168.1.86,192.168.1.62,192.168.1.45'
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out code...'
                 checkout scm
             }
         }
-        
-        stage('Setup Environment') {
+
+        stage('Build Image') {
             steps {
-                echo 'Setting up Python virtual environment...'
-                sh '''
-                    # Detectar comando Python disponible
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD=python3
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD=python
-                    else
-                        echo "ERROR: Python no está instalado en el servidor Jenkins"
-                        echo "Por favor, instala Python 3.8+ en el servidor Jenkins"
-                        exit 1
-                    fi
-                    
-                    echo "Usando Python: $PYTHON_CMD"
-                    $PYTHON_CMD --version
-                    
-                    # Crear venv y activar
-                    $PYTHON_CMD -m venv $VENV_DIR
-                    . $VENV_DIR/bin/activate
-                    
-                    # Actualizar pip e instalar dependencias
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                    
-                    # Instalar herramientas de testing/coverage
-                    pip install pytest pytest-cov coverage flake8 safety
-                '''
+                echo 'Building Docker image...'
+                sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} -t ${REGISTRY}/${IMAGE_NAME}:latest ."
             }
         }
-        
-        stage('Code Quality Checks') {
-            parallel {
-                stage('Lint') {
-                    steps {
-                        echo 'Running code quality checks...'
-                        sh '''
-                            . $VENV_DIR/bin/activate
-                            flake8 src/ --max-line-length=120 --exclude=venv,$VENV_DIR || echo "Lint warnings found"
-                        '''
-                    }
-                }
-                
-                stage('Security Checks') {
-                    steps {
-                        echo 'Checking for security vulnerabilities...'
-                        sh '''
-                            . $VENV_DIR/bin/activate
-                            safety check -r requirements.txt --full-report || echo "Security warnings found"
-                        '''
-                    }
-                }
-            }
-        }
-        
+
         stage('Run Tests') {
             steps {
-                echo 'Running test suite...'
-                sh '''
-                    . $VENV_DIR/bin/activate
-                    
-                    # Crear directorio de resultados con permisos seguros
-                    mkdir -p test-results
-                    chmod 750 test-results
-                    
-                    # Run tests with coverage
-                    pytest tests/ -v \
-                        --junitxml=test-results/junit.xml \
-                        --cov=src \
-                        --cov-report=xml:coverage.xml \
-                        --cov-report=html:htmlcov \
-                        --cov-report=term-missing
-                '''
-            }
-        }
-        
-        stage('Test Coverage Report') {
-            steps {
-                echo 'Generating coverage report...'
-                sh '''
-                    . $VENV_DIR/bin/activate
-                    coverage report
-                '''
-            }
-        }
-
-        stage('Docker Build & Push') {
-            steps {
+                echo 'Running tests inside container...'
                 script {
-                    echo 'Building Docker Image...'
-                    // Usamos el registro local del PC
-                    def registry = "192.168.1.86:5000"
-                    def imageName = "cognitive-anomaly-detector"
-                    def imageTag = "latest"
-                    
-                    sh "docker build -t ${registry}/${imageName}:${imageTag} ."
-                    echo 'Pushing to Local Registry...'
-                    sh "docker push ${registry}/${imageName}:${imageTag}"
+                    try {
+                        sh """
+                        docker run --name test-cad-\${BUILD_NUMBER} \
+                            --user root \
+                            ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
+                            python -m pytest tests/ -v \
+                                --junitxml=test-results.xml \
+                                --disable-warnings
+                        """
+                    } finally {
+                        sh "docker cp test-cad-\${BUILD_NUMBER}:/app/test-results.xml \${WORKSPACE}/test-results.xml || true"
+                        sh "docker rm test-cad-\${BUILD_NUMBER} || true"
+                    }
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'test-results.xml'
                 }
             }
         }
 
-        stage('Deploy (Portainer)') {
+        stage('Push to Registry') {
             steps {
-                echo 'Triggering Portainer Webhook...'
-                // NOTA: Reemplaza TU_WEBHOOK_ID con el ID generado en Portainer (Stacks -> Settings -> Webhooks)
-                sh 'curl -X POST http://192.168.1.86:9000/api/stacks/webhooks/TU_WEBHOOK_ID || echo "Webhook failed or not configured"'
+                echo "Pushing image to ${REGISTRY}..."
+                sh "docker push ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER}"
+                sh "docker push ${REGISTRY}/${IMAGE_NAME}:latest"
             }
         }
     }
-    
+
     post {
         always {
-            echo 'Cleaning up...'
-            
-            // Publish JUnit test results
-            junit(
-                testResults: 'test-results/junit.xml',
-                allowEmptyResults: true,
-                healthScaleFactor: 1.0,
-                keepLongStdio: true
-            )
-            
-            // Publish HTML coverage report
-            publishHTML(
-                target: [
-                    allowMissing: true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'htmlcov',
-                    reportFiles: 'index.html',
-                    reportName: 'Coverage Report',
-                    reportTitles: 'Code Coverage'
-                ]
-            )
-            
-            // Archive coverage XML for other tools (e.g., SonarQube)
-            archiveArtifacts(
-                artifacts: 'coverage.xml,test-results/*.xml',
-                allowEmptyArchive: true,
-                fingerprint: true
-            )
-            
-            sh '''
-                mkdir -p test-results || true
-                rm -rf $VENV_DIR || true
-            '''
+            sh 'rm -f test-results.xml || true'
+            sh "docker rmi ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} || true"
         }
-        
         success {
-            echo '✅ Build succeeded! All tests passed.'
+            echo 'Pipeline succeeded!'
         }
-        
         failure {
-            echo '❌ Build failed! Check test results.'
-        }
-        
-        unstable {
-            echo '⚠️ Build unstable! Some tests may have failed.'
+            echo 'Pipeline failed.'
         }
     }
 }
