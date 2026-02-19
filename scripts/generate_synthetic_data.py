@@ -9,7 +9,7 @@ import argparse
 
 # Add src to path securely
 script_dir = Path(__file__).parent.resolve()
-sys.path.insert(0, str(script_dir.parent / 'src'))
+sys.path.insert(0, str(script_dir.parent))
 
 from src.ml_config import N_FEATURES, FEATURE_NAMES
 

@@ -20,7 +20,7 @@ load_dotenv()
 script_dir = Path(__file__).parent.resolve()
 src_path = script_dir.parent / 'src'
 if src_path.exists():
-    sys.path.insert(0, str(src_path))
+    sys.path.insert(0, str(script_dir.parent))
 else:
     print("Error: src directory not found")
     sys.exit(1)
