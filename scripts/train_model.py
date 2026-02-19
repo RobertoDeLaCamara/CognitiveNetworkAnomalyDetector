@@ -279,7 +279,12 @@ Examples:
         # Print MLflow info if enabled
         if trainer.mlflow_enabled and 'mlflow_run_id' in stats:
             logger.info(f"   MLflow run ID: {stats['mlflow_run_id']}")
-            logger.info(f"   View in MLflow UI: mlflow ui --backend-store-uri file://{os.getcwd()}/.mlflow/mlruns")
+            from src.mlflow_config import get_tracking_uri
+            tracking_uri = get_tracking_uri()
+            if tracking_uri.startswith('http'):
+                logger.info(f"   View in MLflow UI: {tracking_uri}")
+            else:
+                logger.info(f"   View in MLflow UI: mlflow ui --backend-store-uri {tracking_uri}")
         
         logger.info("You can now run the anomaly detector with ML detection enabled.")
         

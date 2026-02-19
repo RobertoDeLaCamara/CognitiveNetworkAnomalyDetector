@@ -37,7 +37,7 @@ MAX_SAMPLES = 'auto'
 MODEL_DIR = 'models'
 
 # Current model version
-MODEL_VERSION = 3
+MODEL_VERSION = 4
 
 # Model file paths
 ISOLATION_FOREST_MODEL_PATH = os.path.join(
