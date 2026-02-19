@@ -54,7 +54,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 # ========== Experiment Configuration ==========
 
 # Default experiment name for anomaly detection training
-DEFAULT_EXPERIMENT_NAME = 'cognitive-anomaly-detector'
+DEFAULT_EXPERIMENT_NAME = 'cognitive-anomaly-detector-v2'
 
 # Nested runs for hyperparameter tuning (future use)
 ENABLE_NESTED_RUNS = False

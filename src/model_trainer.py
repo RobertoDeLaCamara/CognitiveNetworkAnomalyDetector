@@ -46,7 +46,9 @@ try:
         REGISTERED_MODEL_NAME,
         MODEL_ARTIFACT_PATH,
         DEFAULT_TAGS,
-        LOG_TRAINING_DATA
+        DEFAULT_TAGS,
+        LOG_TRAINING_DATA,
+        ARTIFACT_LOCATION
     )
     MLFLOW_AVAILABLE = True
 except ImportError:
@@ -281,8 +283,15 @@ class ModelTrainer:
         run_name: Optional[str] = None
     ) -> dict:
         """Train model with MLflow tracking."""
-        # Set experiment
+        # Set experiment with explicit artifact location if creating new
         exp_name = get_experiment_name(experiment_name)
+        try:
+            if not mlflow.get_experiment_by_name(exp_name):
+                logger.info(f"Creating new experiment '{exp_name}' artifacts -> {ARTIFACT_LOCATION}")
+                mlflow.create_experiment(exp_name, artifact_location=ARTIFACT_LOCATION)
+        except Exception as e:
+            logger.warning(f"Note: Could not create experiment with custom location: {e}")
+            
         mlflow.set_experiment(exp_name)
         
         # Start MLflow run
