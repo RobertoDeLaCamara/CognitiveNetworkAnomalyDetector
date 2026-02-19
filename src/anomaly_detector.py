@@ -138,6 +138,11 @@ class PacketAnalyzer:
         self.alert_timestamps = defaultdict(lambda: deque(maxlen=5))
         self.alert_cooldown = 60  # seconds
         
+        # Hot-reloading state
+        self.last_model_check = time.time()
+        self.model_check_interval = 60  # Check every 60 seconds
+        self.lstm_model_mtime = 0.0
+        
         # ML components
         self.feature_extractor = None
         self.ml_detector = None
@@ -208,6 +213,36 @@ class PacketAnalyzer:
                 logger.error(f"Failed to initialize ML detector: {e}")
                 self.ml_enabled = False
     
+    def _check_model_updates(self) -> None:
+        """Check if models have changed on disk and reload them."""
+        if not LSTM_AVAILABLE or not self.lstm_detector:
+            return
+
+        current_time = time.time()
+        if (current_time - self.last_model_check) < self.model_check_interval:
+            return
+            
+        self.last_model_check = current_time
+        
+        try:
+            # Check LSTM model
+            if os.path.exists(LSTM_MODEL_PATH):
+                mtime = os.path.getmtime(LSTM_MODEL_PATH)
+                # First run, just initialize state
+                if self.lstm_model_mtime == 0.0:
+                    self.lstm_model_mtime = mtime
+                    return
+
+                if mtime > self.lstm_model_mtime:
+                    logger.info(f"LSTM model file changed. Reloading...")
+                    if self.lstm_detector.load():
+                        logger.info("LSTM model reloaded successfully.")
+                    else:
+                        logger.error("Failed to reload LSTM model.")
+                    self.lstm_model_mtime = mtime
+        except Exception as e:
+            logger.error(f"Error checking for model updates: {e}")
+
     def _should_alert(self, ip_src: str, alert_type: str) -> bool:
         """Check if we should send an alert based on rate limiting.
         
@@ -381,6 +416,9 @@ class PacketAnalyzer:
             if resource_monitor.should_throttle():
                 logger.warning("Resource usage high, throttling packet processing")
                 return
+
+            # Check for model updates periodically
+            self._check_model_updates()
 
             ip_src = packet[IP].src
             

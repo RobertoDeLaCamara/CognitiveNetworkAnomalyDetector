@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 import pandas as pd
@@ -54,11 +54,11 @@ def collect_live_traffic(duration: int) -> np.ndarray:
     
     def packet_callback(packet):
         if IP in packet:
-            src_ip = packet[IP].src
-            extractor.update(src_ip, packet)
-            feature_vector = extractor.extract_features(src_ip)
-            if feature_vector is not None:
-                features_list.append(feature_vector)
+            src_ip = extractor.process_packet(packet)
+            if src_ip:
+                feature_vector = extractor.extract_features(src_ip)
+                if feature_vector is not None:
+                    features_list.append(feature_vector)
     
     sniff(
         filter="ip",

@@ -30,8 +30,8 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Train (synthetic data, no root needed)
-python generate_synthetic_data.py
-python train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/generate_synthetic_data.py
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
 
 # 3. Detect
 sudo venv/bin/python main.py
@@ -58,14 +58,17 @@ For Docker, full install options, and MLflow remote setup see [SETUP.md](SETUP.m
 │   ├── config.py                   # Rule thresholds
 │   ├── ml_config.py                # ML & ensemble settings
 │   └── mlflow_config.py            # MLflow / MinIO config
+├── scripts/                        # Training & utility scripts
+│   ├── train_model.py              # Isolation Forest training
+│   ├── train_lstm_model.py         # LSTM training
+│   ├── auto_train_lstm.sh          # Auto-training & hot-reload script
+│   ├── generate_synthetic_data.py
+│   └── promote_latest.py           # MLflow model promotion
 ├── tests/                          # 14 test files (unit + integration)
 ├── models/                         # Trained model files
 ├── data/                           # Training data
 ├── main.py                         # Detection entry point
-├── train_model.py                  # Isolation Forest training CLI
-├── train_lstm_model.py             # LSTM training CLI
 ├── dashboard.py                    # Streamlit dashboard
-├── generate_synthetic_data.py
 └── docker-compose.yml
 ```
 
@@ -73,16 +76,19 @@ For Docker, full install options, and MLflow remote setup see [SETUP.md](SETUP.m
 
 ```bash
 # From synthetic data (fast, no sudo)
-python train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
 
 # From live traffic
-sudo venv/bin/python train_model.py --duration 60 --version 1
+sudo venv/bin/python scripts/train_model.py --duration 60 --version 1
 
 # LSTM Autoencoder
-python train_lstm_model.py --from-file data/training/synthetic_baseline.csv
+python scripts/train_lstm_model.py --from-file data/training/synthetic_baseline.csv
+
+# Auto-train LSTM daily (example)
+sudo scripts/auto_train_lstm.sh
 
 # Disable MLflow for a run
-python train_model.py --from-file data.csv --no-mlflow
+python scripts/train_model.py --from-file data.csv --no-mlflow
 ```
 
 ## Testing
