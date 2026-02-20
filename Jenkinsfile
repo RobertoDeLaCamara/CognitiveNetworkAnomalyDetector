@@ -36,7 +36,7 @@ pipeline {
                         sh """
                         docker run --rm --user root \
                             ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
-                            sh -c 'pip install --quiet flake8 && flake8 src/ --max-line-length=120 --count --statistics || true'
+                            sh -c 'pip install --quiet flake8 && flake8 src/ --max-line-length=120 --count --statistics'
                         """
                     }
                 }
@@ -47,7 +47,7 @@ pipeline {
                         sh """
                         docker run --rm --user root \
                             ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
-                            sh -c 'pip install --quiet safety && safety check -r requirements.txt --full-report || true'
+                            sh -c 'pip install --quiet pip-audit && pip-audit -r requirements.txt'
                         """
                     }
                 }
@@ -88,21 +88,27 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Running SonarQube analysis...'
-                sh """
-                    HOST_WORKSPACE=\$(echo \${WORKSPACE} | sed 's|/var/jenkins_home|/home/roberto/jenkins_home|')
-                    docker run --rm \
-                        -v "\${HOST_WORKSPACE}:/usr/src" \
-                        sonarsource/sonar-scanner-cli \
-                        -Dsonar.projectKey=cognitive-anomaly-detector \
-                        -Dsonar.sources=src \
-                        -Dsonar.tests=tests \
-                        -Dsonar.python.version=3.11 \
-                        -Dsonar.python.coverage.reportPaths=coverage.xml \
-                        -Dsonar.host.url=http://192.168.1.86:9000 \
-                        -Dsonar.login=admin \
-                        -Dsonar.password=patilla1 \
-                        -Dsonar.scm.disabled=true
-                """
+                withCredentials([usernamePassword(
+                    credentialsId: 'sonarqube-credentials',
+                    usernameVariable: 'SONAR_USER',
+                    passwordVariable: 'SONAR_PASS'
+                )]) {
+                    sh """
+                        HOST_WORKSPACE=\$(echo \${WORKSPACE} | sed 's|/var/jenkins_home|/home/roberto/jenkins_home|')
+                        docker run --rm \
+                            -v "\${HOST_WORKSPACE}:/usr/src" \
+                            sonarsource/sonar-scanner-cli \
+                            -Dsonar.projectKey=cognitive-anomaly-detector \
+                            -Dsonar.sources=src \
+                            -Dsonar.tests=tests \
+                            -Dsonar.python.version=3.11 \
+                            -Dsonar.python.coverage.reportPaths=coverage.xml \
+                            -Dsonar.host.url=http://192.168.1.86:9000 \
+                            -Dsonar.login=\${SONAR_USER} \
+                            -Dsonar.password=\${SONAR_PASS} \
+                            -Dsonar.scm.disabled=true
+                    """
+                }
             }
         }
 
