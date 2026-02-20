@@ -10,7 +10,10 @@ from typing import Tuple
 from scapy.all import IP, ICMP, TCP, UDP, Raw
 from src.core.logger_setup import logger
 from src.detection.payload_analyzer import detect_malicious_payload
-from src.config.config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD, TRUSTED_SUBNETS
+from src.config.config import (
+    THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD,
+    PAYLOAD_THRESHOLD, TRUSTED_SUBNETS
+)
 from src.core.resource_monitor import resource_monitor
 from src.core.db_manager import DBManager
 

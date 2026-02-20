@@ -40,7 +40,7 @@ sudo venv/bin/python main.py
 ./run_dashboard.sh          # → http://localhost:8501
 ```
 
-For Docker, full install options, and MLflow remote setup see [SETUP.md](SETUP.md).
+For Docker, full install options, and MLflow remote setup see [SETUP.md](docs/SETUP.md).
 
 ## Project Structure
 
