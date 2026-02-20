@@ -586,13 +586,15 @@ class PacketAnalyzer:
                     ensemble_result = self.ensemble_scorer.combine(engine_results)
                     if ensemble_result.is_anomaly:
                         alert_subject = f"ML ENSEMBLE ANOMALY: {safe_ip}"
+                        engines_str = ", ".join(
+                            f"{n}={r.normalized_score:.3f}"
+                            for n, r in ensemble_result.engines.items()
+                        )
                         alert_body = (
-                            f"Ensemble confidence: {
-                                ensemble_result.confidence_score:.3f}. " f"Engines: {
-                                ', '.join(
-                                    f'{n}={
-                                        r.normalized_score:.3f}' for n,
-                                    r in ensemble_result.engines.items())}")
+                            f"Ensemble confidence: "
+                            f"{ensemble_result.confidence_score:.3f}. "
+                            f"Engines: {engines_str}"
+                        )
                         self.log_alert(
                             alert_subject, alert_body,
                             alert_type="ML_ENSEMBLE",
