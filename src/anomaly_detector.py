@@ -6,7 +6,7 @@ import os
 import ipaddress
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
+from typing import Tuple
 from scapy.all import IP, ICMP, TCP, UDP, Raw
 from .logger_setup import logger
 from .payload_analyzer import detect_malicious_payload
@@ -21,11 +21,8 @@ try:
     from .ml_config import (
         ML_ENABLED,
         MIN_PACKETS_FOR_ML,
-        ML_ANOMALY_THRESHOLD,
-        ML_LOG_THRESHOLD,
         ISOLATION_FOREST_MODEL_PATH,
-        SCALER_MODEL_PATH,
-        MODEL_DIR
+        SCALER_MODEL_PATH
     )
     from .ensemble_scorer import EnsembleScorer, EngineResult
     ML_AVAILABLE = True
@@ -42,12 +39,14 @@ except ImportError:
     LSTM_AVAILABLE = False
 
 # Build absolute paths for model files
+
+
 def _get_model_path(relative_path: str) -> str:
     """Convert relative model path to absolute path with security validation."""
     # Validate path to prevent traversal attacks
     if '..' in relative_path or relative_path.startswith('/'):
         raise ValueError(f"Invalid model path: {relative_path}")
-        
+
     if os.path.isabs(relative_path):
         # Only allow paths within project directory
         project_root = Path(__file__).parent.parent
@@ -57,9 +56,10 @@ def _get_model_path(relative_path: str) -> str:
             return relative_path
         except ValueError:
             raise ValueError(f"Path outside project directory: {relative_path}")
-    
+
     project_root = Path(__file__).parent.parent
     return str(project_root / relative_path)
+
 
 # Convert relative paths to absolute
 if ML_AVAILABLE:
@@ -69,10 +69,10 @@ if ML_AVAILABLE:
 
 def _validate_ip_address(ip_str: str) -> bool:
     """Validate IP address format and check if it's not a reserved address.
-    
+
     Args:
         ip_str: IP address string to validate
-        
+
     Returns:
         True if IP is valid and not reserved
     """
@@ -81,25 +81,26 @@ def _validate_ip_address(ip_str: str) -> bool:
         # Skip reserved/private addresses that might be noise
         if ip.is_loopback or ip.is_link_local:
             return False
-            
+
         # Check against trusted subnets
         for subnet in TRUSTED_SUBNETS:
-             try:
-                 if ip in ipaddress.ip_network(subnet):
-                     return False # Ignore trusted subnet
-             except ValueError:
-                 pass
-                 
+            try:
+                if ip in ipaddress.ip_network(subnet):
+                    return False  # Ignore trusted subnet
+            except ValueError:
+                pass
+
         return True
     except (ipaddress.AddressValueError, ValueError):
         return False
 
+
 def _sanitize_ip_for_logging(ip_str: str) -> str:
     """Sanitize IP address for safe logging.
-    
+
     Args:
         ip_str: IP address string
-        
+
     Returns:
         Sanitized IP address string
     """
@@ -110,12 +111,13 @@ def _sanitize_ip_for_logging(ip_str: str) -> str:
     except (ipaddress.AddressValueError, ValueError):
         return "<invalid_ip>"
 
+
 class PacketAnalyzer:
     """Encapsulates anomaly detection logic for network packets."""
-    
+
     def __init__(self, enable_ml: bool = True, max_ips: int = 1000):
         """Initialize the packet analyzer.
-        
+
         Args:
             enable_ml: Whether to enable ML-based detection
             max_ips: Maximum number of IPs to track (prevents memory exhaustion)
@@ -124,7 +126,7 @@ class PacketAnalyzer:
         if max_ips > 5000:
             max_ips = 5000
             logger.warning("IP limit capped at 5000 for security")
-            
+
         self.db_manager = DBManager()
         self.packet_count_per_ip = defaultdict(int)
         self.packet_rate_per_ip = defaultdict(lambda: deque(maxlen=10))
@@ -133,16 +135,16 @@ class PacketAnalyzer:
         self.ml_enabled = enable_ml and ML_AVAILABLE and ML_ENABLED
         self.packet_count = 0
         self.max_packets = 100000  # Prevent memory exhaustion
-        
+
         # Rate limiting for alerts
         self.alert_timestamps = defaultdict(lambda: deque(maxlen=5))
         self.alert_cooldown = 60  # seconds
-        
+
         # Hot-reloading state
         self.last_model_check = time.time()
         self.model_check_interval = 60  # Check every 60 seconds
         self.lstm_model_mtime = 0.0
-        
+
         # ML components
         self.feature_extractor = None
         self.ml_detector = None
@@ -153,28 +155,28 @@ class PacketAnalyzer:
             try:
                 self.feature_extractor = FeatureExtractor()
                 self.ml_detector = IsolationForestDetector()
-                
+
                 # Try to load pre-trained model
                 model_loaded = False
-                
+
                 # Option 1: Load from MLflow (if enabled)
                 if ML_ENABLED and os.getenv('MLFLOW_ENABLE_REMOTE_LOADING', 'false').lower() == 'true':
                     try:
                         logger.info("Attempting to load model from MLflow...")
                         stage = os.getenv('MLFLOW_MODEL_STAGE', 'Production')
                         version = os.getenv('MLFLOW_MODEL_VERSION')
-                        
+
                         if version:
                             self.ml_detector.load_from_mlflow(version=int(version))
                         else:
                             self.ml_detector.load_from_mlflow(stage=stage)
-                            
+
                         model_loaded = True
                         logger.info("ML detector loaded successfully from MLflow")
                     except Exception as mlflow_e:
                         logger.error(f"Failed to load model from MLflow: {mlflow_e}")
                         logger.info("Falling back to local model file...")
-                
+
                 # Option 2: Load from local file (default or fallback)
                 if not model_loaded:
                     if os.path.exists(ISOLATION_FOREST_MODEL_PATH) and os.path.exists(SCALER_MODEL_PATH):
@@ -212,7 +214,7 @@ class PacketAnalyzer:
             except Exception as e:
                 logger.error(f"Failed to initialize ML detector: {e}")
                 self.ml_enabled = False
-    
+
     def _check_model_updates(self) -> None:
         """Check if models have changed on disk and reload them."""
         if not LSTM_AVAILABLE or not self.lstm_detector:
@@ -221,9 +223,9 @@ class PacketAnalyzer:
         current_time = time.time()
         if (current_time - self.last_model_check) < self.model_check_interval:
             return
-            
+
         self.last_model_check = current_time
-        
+
         try:
             # Check LSTM model
             if os.path.exists(LSTM_MODEL_PATH):
@@ -234,7 +236,7 @@ class PacketAnalyzer:
                     return
 
                 if mtime > self.lstm_model_mtime:
-                    logger.info(f"LSTM model file changed. Reloading...")
+                    logger.info("LSTM model file changed. Reloading...")
                     if self.lstm_detector.load():
                         logger.info("LSTM model reloaded successfully.")
                     else:
@@ -245,37 +247,37 @@ class PacketAnalyzer:
 
     def _should_alert(self, ip_src: str, alert_type: str) -> bool:
         """Check if we should send an alert based on rate limiting.
-        
+
         Args:
             ip_src: Source IP address
             alert_type: Type of alert
-            
+
         Returns:
             True if alert should be sent
         """
         current_time = time.time()
         alert_key = f"{ip_src}:{alert_type}"
-        
+
         # Check recent alerts for this IP and type
         recent_alerts = self.alert_timestamps[alert_key]
-        
+
         # Remove old alerts outside cooldown period
         while recent_alerts and current_time - recent_alerts[0] > self.alert_cooldown:
             recent_alerts.popleft()
-        
+
         # Allow alert if not too many recent alerts
         if len(recent_alerts) < 3:  # Max 3 alerts per cooldown period
             recent_alerts.append(current_time)
             return True
-        
+
         return False
-    
+
     def _cleanup_old_data(self) -> None:
         """Clean up old data to prevent memory exhaustion."""
         if len(self.packet_count_per_ip) > self.max_ips:
             # Remove oldest IPs (simple cleanup strategy)
             sorted_ips = sorted(
-                self.packet_count_per_ip.items(), 
+                self.packet_count_per_ip.items(),
                 key=lambda x: x[1]
             )
             # Remove bottom 10% of IPs by packet count
@@ -284,19 +286,19 @@ class PacketAnalyzer:
                 del self.packet_count_per_ip[ip]
                 if ip in self.packet_rate_per_ip:
                     del self.packet_rate_per_ip[ip]
-    
+
     def calculate_packet_rate(self, ip_src: str) -> Tuple[float, float]:
         """Calculate the packet rate per IP with input validation.
-        
+
         Args:
             ip_src: Source IP address
-        
+
         Returns:
             Tuple of (current_rate, average_rate)
         """
         if not _validate_ip_address(ip_src):
             return 0.0, 0.0
-            
+
         current_time = time.time()
         elapsed_time = current_time - self.start_time
 
@@ -311,7 +313,7 @@ class PacketAnalyzer:
         rates = list(self.packet_rate_per_ip[ip_src])
         avg_rate = statistics.mean(rates) if rates else 0.0
         return rate, avg_rate
-    
+
     def log_alert(self, subject: str, body: str, alert_type: str = "RULE",
                   ip_src: str = None, anomaly_score: float = 0.0,
                   raw_data: dict = None) -> None:
@@ -352,22 +354,22 @@ class PacketAnalyzer:
             self.db_manager.add_anomaly(**kwargs)
         except Exception as e:
             logger.error(f"Failed to persist alert to DB: {e}")
-    
+
     def log_ml_alert(self, ip: str, anomaly_score: float, features) -> None:
         """Log ML-detected anomalies with input validation.
-        
+
         Args:
             ip: Source IP address
             anomaly_score: Anomaly score from ML model
             features: Feature array from extraction
         """
         safe_ip = _sanitize_ip_for_logging(ip)
-        
+
         # Validate anomaly score
         if not isinstance(anomaly_score, (int, float)) or abs(anomaly_score) > 10:
             logger.warning(f"Invalid anomaly score for {safe_ip}: {anomaly_score}")
             return
-            
+
         alert_subject = f"ML ANOMALY DETECTED: {safe_ip}"
         alert_body = (
             f"IP {safe_ip} flagged as anomalous by ML model. "
@@ -375,18 +377,18 @@ class PacketAnalyzer:
             f"Total packets: {self.packet_count_per_ip.get(ip, 0)}"
         )
         self.log_alert(alert_subject, alert_body, alert_type="ML", ip_src=ip)
-        
+
         # Update DB with specific ML score
-        # Note: redundant insert here but handled for simplicity. 
+        # Note: redundant insert here but handled for simplicity.
         # Ideally, refactor log_alert to accept optional score.
         # For now, we will just let log_alert save it with score 0.0 and update it here?
         # Better: Pass score through log_alert if we refactored it.
-        # Minimal change approach: Overwrite the last insert? No, easier to just accept the 0.0 for now 
+        # Minimal change approach: Overwrite the last insert? No, easier to just accept the 0.0 for now
         # or separate the DB call.
-        
+
         # Actually, let's just do a specific DB insert for ML here to get the score right
         try:
-             self.db_manager.add_anomaly(
+            self.db_manager.add_anomaly(
                 ip_address=safe_ip,
                 alert_type="ML",
                 description=alert_body,
@@ -395,10 +397,10 @@ class PacketAnalyzer:
             )
         except Exception as e:
             logger.error(f"Failed to persist ML alert to DB: {e}")
-    
+
     def analyze_packet(self, packet) -> None:
         """Analyze a single packet for anomalies with comprehensive validation.
-        
+
         Args:
             packet: Scapy packet object
         """
@@ -411,7 +413,7 @@ class PacketAnalyzer:
             if self.packet_count > self.max_packets:
                 logger.warning("Packet limit reached, dropping packets")
                 return
-                
+
             # Check resource usage
             if resource_monitor.should_throttle():
                 logger.warning("Resource usage high, throttling packet processing")
@@ -421,18 +423,18 @@ class PacketAnalyzer:
             self._check_model_updates()
 
             ip_src = packet[IP].src
-            
+
             # Validate IP address
             if not _validate_ip_address(ip_src):
                 return
-                
+
             # Prevent memory exhaustion
             if len(self.packet_count_per_ip) > self.max_ips:
                 self._cleanup_old_data()
-            
+
             # Increment packet count first
             self.packet_count_per_ip[ip_src] += 1
-            
+
             # Per-IP packet limit check
             if self.packet_count_per_ip[ip_src] > 10000:
                 logger.warning(f"IP {ip_src} exceeded packet limit")
@@ -544,7 +546,8 @@ class PacketAnalyzer:
                         if payload_size > PAYLOAD_THRESHOLD:
                             rule_fired = True
                             alert_subject = f"ALERT: Unusually large payload from {safe_ip}"
-                            alert_body = f"A payload of {payload_size} bytes was detected from {safe_ip} to port {dport}."
+                            alert_body = (f"A payload of {payload_size} bytes was detected"
+                                          f" from {safe_ip} to port {dport}.")
                             self.log_alert(alert_subject, alert_body, ip_src=ip_src)
 
                         # Detect malicious patterns in the payload
@@ -553,7 +556,10 @@ class PacketAnalyzer:
                             if is_malicious and pattern:
                                 rule_fired = True
                                 alert_subject = f"ALERT: Malicious payload detected from {safe_ip}"
-                                alert_body = f"The pattern '{pattern}' was detected in traffic from {safe_ip} to port {dport}."
+                                alert_body = (
+                                    f"The pattern '{pattern}' was detected in traffic"
+                                    f" from {safe_ip} to port {dport}."
+                                )
                                 self.log_alert(alert_subject, alert_body, ip_src=ip_src)
                         except Exception as payload_e:
                             logger.error(f"Error analyzing payload from {safe_ip}: {payload_e}")
@@ -578,9 +584,12 @@ class PacketAnalyzer:
                     if ensemble_result.is_anomaly:
                         alert_subject = f"ML ENSEMBLE ANOMALY: {safe_ip}"
                         alert_body = (
-                            f"Ensemble confidence: {ensemble_result.confidence_score:.3f}. "
-                            f"Engines: {', '.join(f'{n}={r.normalized_score:.3f}' for n, r in ensemble_result.engines.items())}"
-                        )
+                            f"Ensemble confidence: {
+                                ensemble_result.confidence_score:.3f}. " f"Engines: {
+                                ', '.join(
+                                    f'{n}={
+                                        r.normalized_score:.3f}' for n,
+                                    r in ensemble_result.engines.items())}")
                         self.log_alert(
                             alert_subject, alert_body,
                             alert_type="ML_ENSEMBLE",

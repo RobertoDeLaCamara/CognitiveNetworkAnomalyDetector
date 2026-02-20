@@ -7,17 +7,24 @@ This module provides utilities for:
 - Saving trained models
 """
 
+from .ml_config import (
+    MIN_TRAINING_SAMPLES,
+    TRAINING_DATA_DIR,
+    MODEL_DIR
+)
+from .logger_setup import logger
 import time
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from scapy.all import sniff
 
 from .feature_extractor import FeatureExtractor
 from .isolation_forest_detector import IsolationForestDetector
 # Import validation function locally to avoid circular imports
 import ipaddress
+
 
 def _validate_ip_address(ip_str: str) -> bool:
     """Validate IP address format."""
@@ -26,12 +33,7 @@ def _validate_ip_address(ip_str: str) -> bool:
         return not (ip.is_loopback or ip.is_link_local)
     except (ipaddress.AddressValueError, ValueError):
         return False
-from .ml_config import (
-    MIN_TRAINING_SAMPLES,
-    TRAINING_DATA_DIR,
-    MODEL_DIR
-)
-from .logger_setup import logger
+
 
 # MLflow imports (optional dependency)
 try:
@@ -42,10 +44,8 @@ try:
         get_tracking_uri,
         get_experiment_name,
         is_mlflow_enabled,
-        get_run_name,
         REGISTERED_MODEL_NAME,
         MODEL_ARTIFACT_PATH,
-        DEFAULT_TAGS,
         DEFAULT_TAGS,
         LOG_TRAINING_DATA,
         ARTIFACT_LOCATION
@@ -58,10 +58,10 @@ except ImportError:
 
 class ModelTrainer:
     """Handles training workflow for the Isolation Forest model."""
-    
+
     def __init__(self, enable_mlflow: bool = None):
         """Initialize the model trainer.
-        
+
         Args:
             enable_mlflow: Enable MLflow tracking (None = auto-detect)
         """
@@ -69,39 +69,39 @@ class ModelTrainer:
         self.detector = IsolationForestDetector()
         self.training_features = []
         self.training_ips = []
-        
+
         # MLflow configuration
         if enable_mlflow is None:
             self.mlflow_enabled = MLFLOW_AVAILABLE and is_mlflow_enabled()
         else:
             self.mlflow_enabled = enable_mlflow and MLFLOW_AVAILABLE
-        
+
         if self.mlflow_enabled:
             mlflow.set_tracking_uri(get_tracking_uri())
             logger.info(f"MLflow tracking enabled: {get_tracking_uri()}")
         else:
             logger.info("MLflow tracking disabled")
-    
+
     def collect_baseline_traffic(
         self,
         duration: int = 60,
         interface: Optional[str] = None
     ) -> int:
         """Collect baseline traffic for training.
-        
+
         Args:
             duration: Collection duration in seconds
             interface: Network interface to monitor (None = all)
-        
+
         Returns:
             Number of unique IPs collected
         """
         logger.info(f"Collecting baseline traffic for {duration} seconds...")
-        
+
         def packet_callback(packet):
             """Process each captured packet."""
-            ip = self.feature_extractor.process_packet(packet)
-        
+            self.feature_extractor.process_packet(packet)
+
         # Capture packets
         sniff(
             prn=packet_callback,
@@ -109,59 +109,59 @@ class ModelTrainer:
             iface=interface,
             store=False
         )
-        
+
         # Extract features from all collected IPs
         ips = self.feature_extractor.get_all_ips()
         logger.info(f"Collected traffic from {len(ips)} unique IPs")
-        
+
         # Extract features
         for ip in ips:
             features = self.feature_extractor.extract_features(ip)
             if features is not None:
                 self.training_features.append(features)
                 self.training_ips.append(ip)
-        
+
         logger.info(f"Extracted features for {len(self.training_features)} IPs")
-        
+
         return len(self.training_features)
-    
+
     def load_training_data(self, filepath: str):
         """Load pre-collected training data from file.
-        
+
         Args:
             filepath: Path to CSV file with training data
         """
         # Secure file path to prevent traversal
         if '..' in str(filepath):
             raise ValueError(f"Path traversal detected: {filepath}")
-            
+
         file_path = Path(filepath).resolve()
-        
+
         # Ensure file is CSV and exists
         if file_path.suffix.lower() != '.csv':
             raise ValueError(f"Invalid file type: {file_path.suffix}")
         if not file_path.exists():
             raise FileNotFoundError(f"Training data file not found: {filepath}")
-            
+
         # Check file size (max 100MB)
         file_size = file_path.stat().st_size
         if file_size > 100 * 1024 * 1024:
             raise ValueError(f"File too large: {file_size} bytes (max 100MB)")
-            
+
         logger.info(f"Loading training data from {filepath}")
-        
+
         try:
             # Limit rows to prevent memory exhaustion
             df = pd.read_csv(filepath, nrows=50000)
         except Exception as e:
             raise ValueError(f"Failed to load training data: {e}")
-        
+
         # Validate DataFrame structure
         if len(df) == 0:
             raise ValueError("Empty training data file")
         if len(df.columns) > 50:
             raise ValueError(f"Too many columns: {len(df.columns)} (max 50)")
-            
+
         # Extract features (assuming all columns except 'ip' are features)
         if 'ip' in df.columns:
             # Validate IP addresses
@@ -178,36 +178,36 @@ class ModelTrainer:
         else:
             self.training_ips = [f"ip_{i}" for i in range(len(df))]
             feature_cols = df.columns.tolist()
-        
+
         # Validate feature data
         feature_data = df[feature_cols].values
         if np.any(np.isnan(feature_data)) or np.any(np.isinf(feature_data)):
             logger.warning("Invalid values detected in training data, cleaning...")
             feature_data = np.nan_to_num(feature_data, nan=0.0, posinf=1e6, neginf=-1e6)
-            
+
         self.training_features = feature_data.tolist()
-        
+
         logger.info(
             f"Loaded {len(self.training_features)} samples with "
             f"{len(feature_cols)} features"
         )
-    
+
     def train_model(
-        self, 
+        self,
         contamination: Optional[float] = None,
         experiment_name: Optional[str] = None,
         run_name: Optional[str] = None
     ) -> dict:
         """Train the Isolation Forest model on collected data.
-        
+
         Args:
             contamination: Override default contamination parameter
             experiment_name: Custom MLflow experiment name
             run_name: Custom MLflow run name
-        
+
         Returns:
             Dictionary with training statistics
-        
+
         Raises:
             ValueError: If insufficient training data
         """
@@ -216,46 +216,46 @@ class ModelTrainer:
                 f"Insufficient training data: {len(self.training_features)} samples "
                 f"(minimum: {MIN_TRAINING_SAMPLES})"
             )
-        
+
         # Convert to numpy array
         features = np.array(self.training_features)
         feature_names = self.feature_extractor.get_feature_names()
-        
+
         logger.info(
             f"Training Isolation Forest on {features.shape[0]} samples "
             f"with {features.shape[1]} features"
         )
-        
+
         # Update contamination if provided
         if contamination is not None:
             self.detector.contamination = contamination
             self.detector.model.contamination = contamination
-        
+
         # Start MLflow run if enabled
         if self.mlflow_enabled:
             return self._train_with_mlflow(
-                features, 
-                feature_names, 
-                experiment_name, 
+                features,
+                feature_names,
+                experiment_name,
                 run_name
             )
         else:
             return self._train_without_mlflow(features, feature_names)
-    
+
     def _train_without_mlflow(self, features: np.ndarray, feature_names: List[str]) -> dict:
         """Train model without MLflow tracking."""
         # Train model
         start_time = time.time()
         self.detector.train(features, feature_names)
         training_time = time.time() - start_time
-        
+
         # Get predictions on training set for validation
         predictions, scores = self.detector.predict_batch(features)
-        
+
         # Calculate statistics
         n_anomalies = np.sum(predictions == -1)
         anomaly_rate = n_anomalies / len(predictions)
-        
+
         stats = {
             'n_samples': len(features),
             'n_features': features.shape[1],
@@ -267,14 +267,14 @@ class ModelTrainer:
             'score_min': float(np.min(scores)),
             'score_max': float(np.max(scores)),
         }
-        
+
         logger.info(f"Training completed in {training_time:.2f} seconds")
         logger.info(f"Anomaly rate in training set: {anomaly_rate:.2%}")
         logger.info(f"Score statistics: mean={stats['score_mean']:.3f}, "
-                   f"std={stats['score_std']:.3f}")
-        
+                    f"std={stats['score_std']:.3f}")
+
         return stats
-    
+
     def _train_with_mlflow(
         self,
         features: np.ndarray,
@@ -291,15 +291,15 @@ class ModelTrainer:
                 mlflow.create_experiment(exp_name, artifact_location=ARTIFACT_LOCATION)
         except Exception as e:
             logger.warning(f"Note: Could not create experiment with custom location: {e}")
-            
+
         mlflow.set_experiment(exp_name)
-        
+
         # Start MLflow run
         with mlflow.start_run(run_name=run_name) as run:
             # Log tags
             for key, value in DEFAULT_TAGS.items():
                 mlflow.set_tag(key, value)
-            
+
             # Log parameters
             mlflow.log_param('contamination', self.detector.contamination)
             mlflow.log_param('n_estimators', self.detector.n_estimators)
@@ -307,19 +307,19 @@ class ModelTrainer:
             mlflow.log_param('max_samples', self.detector.max_samples)
             mlflow.log_param('n_features', features.shape[1])
             mlflow.log_param('n_training_samples', features.shape[0])
-            
+
             # Train model
             start_time = time.time()
             self.detector.train(features, feature_names)
             training_time = time.time() - start_time
-            
+
             # Get predictions on training set
             predictions, scores = self.detector.predict_batch(features)
-            
+
             # Calculate statistics
             n_anomalies = np.sum(predictions == -1)
             anomaly_rate = n_anomalies / len(predictions)
-            
+
             # Log metrics
             mlflow.log_metric('training_time_seconds', training_time)
             mlflow.log_metric('n_samples', len(features))
@@ -330,7 +330,7 @@ class ModelTrainer:
             mlflow.log_metric('score_std', float(np.std(scores)))
             mlflow.log_metric('score_min', float(np.min(scores)))
             mlflow.log_metric('score_max', float(np.max(scores)))
-            
+
             # Log model with signature
             try:
                 signature = infer_signature(features, predictions)
@@ -342,7 +342,7 @@ class ModelTrainer:
             except Exception as e:
                 logger.warning(f"Could not log model signature: {e}")
                 mlflow.sklearn.log_model(self.detector.model, MODEL_ARTIFACT_PATH)
-            
+
             # Log scaler as artifact
             try:
                 import tempfile
@@ -367,11 +367,11 @@ class ModelTrainer:
             # Log training data if enabled
             if LOG_TRAINING_DATA and len(self.training_features) > 0:
                 self._log_training_data_artifact()
-            
+
             logger.info(f"MLflow run ID: {run.info.run_id}")
             logger.info(f"Training completed in {training_time:.2f} seconds")
             logger.info(f"Anomaly rate in training set: {anomaly_rate:.2%}")
-            
+
             stats = {
                 'n_samples': len(features),
                 'n_features': features.shape[1],
@@ -385,9 +385,9 @@ class ModelTrainer:
                 'mlflow_run_id': run.info.run_id,
                 'mlflow_experiment_id': run.info.experiment_id
             }
-            
+
             return stats
-    
+
     def _log_training_data_artifact(self):
         """Log training data as MLflow artifact."""
         try:
@@ -395,7 +395,7 @@ class ModelTrainer:
             feature_names = self.feature_extractor.get_feature_names()
             df = pd.DataFrame(self.training_features, columns=feature_names)
             df.insert(0, 'ip', self.training_ips)
-            
+
             with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
                 try:
                     df.to_csv(f.name, index=False)
@@ -409,10 +409,10 @@ class ModelTrainer:
                         pass
         except Exception as e:
             logger.warning(f"Could not log training data: {e}")
-    
+
     def save_model(self, version: Optional[int] = None, register_model: bool = True, run_id: Optional[str] = None):
         """Save the trained model to disk and optionally register to MLflow.
-        
+
         Args:
             version: Model version number (optional)
             register_model: Register model to MLflow Model Registry
@@ -424,9 +424,9 @@ class ModelTrainer:
             self.detector.save(str(model_path), str(scaler_path))
         else:
             self.detector.save()
-        
+
         logger.info("Model saved successfully")
-        
+
         # Register model to MLflow if enabled
         if self.mlflow_enabled and register_model:
             try:
@@ -436,7 +436,7 @@ class ModelTrainer:
                     active_run = mlflow.active_run()
                     if active_run:
                         target_run_id = active_run.info.run_id
-                
+
                 if target_run_id:
                     model_uri = f"runs:/{target_run_id}/{MODEL_ARTIFACT_PATH}"
                     mlflow.register_model(model_uri, REGISTERED_MODEL_NAME)
@@ -445,17 +445,17 @@ class ModelTrainer:
                     logger.warning("No active run or run_id provided. Skipping model registration.")
             except Exception as e:
                 logger.warning(f"Could not register model to MLflow: {e}")
-    
+
     def save_training_data(self, filepath: Optional[str] = None):
         """Save collected training data to CSV file.
-        
+
         Args:
             filepath: Output file path (defaults to TRAINING_DATA_DIR)
         """
         if not self.training_features:
             logger.warning("No training data to save")
             return
-        
+
         # Create default filepath if not provided
         if filepath is None:
             Path(TRAINING_DATA_DIR).mkdir(parents=True, exist_ok=True)
@@ -466,36 +466,36 @@ class ModelTrainer:
             if '..' in str(filepath):
                 raise ValueError(f"Path traversal detected: {filepath}")
             filepath = Path(filepath).resolve()
-        
+
         # Create DataFrame
         feature_names = self.feature_extractor.get_feature_names()
         df = pd.DataFrame(self.training_features, columns=feature_names)
         df.insert(0, 'ip', self.training_ips)
-        
+
         # Save to CSV
         df.to_csv(filepath, index=False)
         logger.info(f"Training data saved to {filepath}")
-    
+
     def validate_model(self, test_features: Optional[np.ndarray] = None) -> dict:
         """Validate the trained model.
-        
+
         Args:
             test_features: Optional test set (uses training set if None)
-        
+
         Returns:
             Dictionary with validation metrics
         """
         if test_features is None:
             test_features = np.array(self.training_features)
             logger.info("Validating on training set (no separate test set provided)")
-        
+
         # Get predictions
         predictions, scores = self.detector.predict_batch(test_features)
-        
+
         # Calculate metrics
         n_anomalies = np.sum(predictions == -1)
         anomaly_rate = n_anomalies / len(predictions)
-        
+
         metrics = {
             'n_samples': len(test_features),
             'n_anomalies': int(n_anomalies),
@@ -505,10 +505,10 @@ class ModelTrainer:
             'score_min': float(np.min(scores)),
             'score_max': float(np.max(scores)),
         }
-        
+
         logger.info(f"Validation results: {n_anomalies}/{len(test_features)} "
-                   f"anomalies ({anomaly_rate:.2%})")
-        
+                    f"anomalies ({anomaly_rate:.2%})")
+
         return metrics
 
 
@@ -519,35 +519,35 @@ def train_and_save_model(
     version: Optional[int] = None
 ) -> dict:
     """Convenience function to train and save a model.
-    
+
     Args:
         duration: Traffic collection duration in seconds
         contamination: Expected anomaly proportion
         save_data: Whether to save training data to CSV
         version: Model version number
-    
+
     Returns:
         Training statistics dictionary
     """
     trainer = ModelTrainer()
-    
+
     # Collect baseline traffic
     n_samples = trainer.collect_baseline_traffic(duration=duration)
-    
+
     if n_samples < MIN_TRAINING_SAMPLES:
         raise ValueError(
             f"Collected insufficient samples: {n_samples} "
             f"(minimum: {MIN_TRAINING_SAMPLES})"
         )
-    
+
     # Save training data if requested
     if save_data:
         trainer.save_training_data()
-    
+
     # Train model
     stats = trainer.train_model(contamination=contamination)
-    
+
     # Save model
     trainer.save_model(version=version)
-    
+
     return stats

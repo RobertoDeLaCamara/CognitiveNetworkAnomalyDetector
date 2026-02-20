@@ -1,7 +1,7 @@
 """Security configuration for the anomaly detection system."""
 
 import os
-from typing import List, Dict, Any
+from typing import List, Dict
 
 # ========== Input Validation Settings ==========
 
@@ -31,7 +31,7 @@ MAX_TRAINING_FILE_SIZE = 500 * 1024 * 1024  # 500 MB
 # IP address validation
 ALLOWED_IP_RANGES: List[str] = [
     '10.0.0.0/8',
-    '172.16.0.0/12', 
+    '172.16.0.0/12',
     '192.168.0.0/16',
     '127.0.0.0/8'
 ]
@@ -86,66 +86,70 @@ DANGEROUS_ENV_VARS = [
     'PYTHONPATH',
 ]
 
+
 def validate_security_config() -> List[str]:
     """Validate security configuration and return any issues.
-    
+
     Returns:
         List of security issues found
     """
     issues = []
-    
+
     # Check file size limits
     if MAX_LOG_FILE_SIZE > 1024 * 1024 * 1024:  # 1GB
         issues.append("Log file size limit too large (>1GB)")
-    
+
     # Check rate limiting
     if ALERT_COOLDOWN_SECONDS < 1:
         issues.append("Alert cooldown too short (<1 second)")
-    
+
     if MAX_ALERTS_PER_IP > 100:
         issues.append("Max alerts per IP too high (>100)")
-    
+
     # Check tracking limits
     if MAX_IP_TRACKING > 100000:
         issues.append("IP tracking limit too high (>100k)")
-    
+
     return issues
+
 
 def get_secure_temp_dir() -> str:
     """Get a secure temporary directory path.
-    
+
     Returns:
         Path to secure temporary directory
     """
     import tempfile
     return tempfile.mkdtemp(prefix='anomaly_detector_')
 
+
 def sanitize_for_logging(text: str) -> str:
     """Sanitize text for safe logging.
-    
+
     Args:
         text: Text to sanitize
-        
+
     Returns:
         Sanitized text safe for logging
     """
     import re
-    
+
     if not isinstance(text, str):
         text = str(text)
-    
+
     # Limit length
     if len(text) > MAX_LOG_MESSAGE_LENGTH:
         text = text[:MAX_LOG_MESSAGE_LENGTH] + "..."
-    
+
     # Remove sensitive patterns
     for pattern in SENSITIVE_PATTERNS:
         text = re.sub(pattern, '[REDACTED]', text, flags=re.IGNORECASE)
-    
+
     # Replace non-printable characters
     text = ''.join(c if c.isprintable() else '?' for c in text)
-    
+
     return text
+
 
 # Validate configuration on import
 _security_issues = validate_security_config()

@@ -29,7 +29,7 @@ COLORS = {
     "anomaly": "#e74c3c",     # Red
     "warning": "#f39c12",     # Orange
     "info": "#3498db",        # Blue
-    "background": "#0e1117", # Dark background
+    "background": "#0e1117",  # Dark background
     "text": "#fafafa",        # Light text
     "primary": "#ff4b4b",     # Streamlit red
 }
@@ -38,7 +38,7 @@ COLORS = {
 FEATURE_NAMES = [
     # Statistical (6)
     "packets_per_second",
-    "bytes_per_second", 
+    "bytes_per_second",
     "avg_packet_size",
     "packet_size_variance",
     "total_packets",
@@ -62,9 +62,12 @@ FEATURE_NAMES = [
 ]
 
 # MLflow settings
+
+
 def get_mlflow_uri() -> Optional[str]:
     """Get MLflow tracking URI from environment or default."""
     return os.getenv("MLFLOW_TRACKING_URI", None)
+
 
 MLFLOW_ENABLED = get_mlflow_uri() is not None
 REGISTERED_MODEL_NAME = "isolation-forest-anomaly-detector"

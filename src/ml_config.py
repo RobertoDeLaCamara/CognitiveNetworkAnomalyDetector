@@ -1,5 +1,6 @@
 """Configuration for ML-based anomaly detection components."""
 
+import secrets
 import os
 
 # ========== ML Feature Extraction Settings ==========
@@ -25,7 +26,6 @@ CONTAMINATION = 0.01
 N_ESTIMATORS = 100
 
 # Random state for reproducibility (use secure random in production)
-import secrets
 RANDOM_STATE = int(os.getenv('ML_RANDOM_STATE', secrets.randbits(32) % 2147483647))
 
 # Maximum samples to use for training ('auto' or int)
@@ -41,11 +41,11 @@ MODEL_VERSION = 4
 
 # Model file paths
 ISOLATION_FOREST_MODEL_PATH = os.path.join(
-    MODEL_DIR, 
+    MODEL_DIR,
     f'isolation_forest_v{MODEL_VERSION}.joblib'
 )
 SCALER_MODEL_PATH = os.path.join(
-    MODEL_DIR, 
+    MODEL_DIR,
     f'scaler_v{MODEL_VERSION}.joblib'
 )
 
@@ -84,22 +84,22 @@ FEATURE_NAMES = [
     'packet_size_variance',
     'total_packets',
     'total_bytes',
-    
+
     # Temporal features (4)
     'inter_arrival_mean',
     'inter_arrival_std',
     'burst_rate',
     'session_duration',
-    
+
     # Protocol features (3)
     'tcp_ratio',
     'udp_ratio',
     'icmp_ratio',
-    
+
     # Port features (2)
     'unique_ports',
     'uncommon_port_ratio',
-    
+
     # Payload features (3)
     'payload_entropy',
     'avg_payload_size',

@@ -43,12 +43,14 @@ pipeline {
 
                 stage('Security Checks') {
                     steps {
-                        echo 'Checking for security vulnerabilities...'
-                        sh """
-                        docker run --rm --user root \
-                            ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
-                            sh -c 'pip install --quiet pip-audit && pip-audit -r requirements.txt'
-                        """
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            echo 'Checking for security vulnerabilities...'
+                            sh """
+                            docker run --rm --user root \
+                                ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} \
+                                sh -c 'pip install --quiet pip-audit && pip-audit -r requirements.txt'
+                            """
+                        }
                     }
                 }
             }

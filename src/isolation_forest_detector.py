@@ -46,7 +46,7 @@ except ImportError:
 
 class IsolationForestDetector:
     """Isolation Forest anomaly detector for network traffic."""
-    
+
     def __init__(
         self,
         contamination: float = CONTAMINATION,
@@ -55,7 +55,7 @@ class IsolationForestDetector:
         max_samples: str = MAX_SAMPLES
     ):
         """Initialize the Isolation Forest detector.
-        
+
         Args:
             contamination: Expected proportion of anomalies (0.0 to 0.5)
             n_estimators: Number of trees in the forest
@@ -66,7 +66,7 @@ class IsolationForestDetector:
         self.n_estimators = n_estimators
         self.random_state = random_state
         self.max_samples = max_samples
-        
+
         # Initialize models
         self.model = IsolationForest(
             contamination=contamination,
@@ -76,54 +76,54 @@ class IsolationForestDetector:
             n_jobs=-1,  # Use all CPU cores
             verbose=0
         )
-        
+
         self.scaler = StandardScaler()
         self.is_trained = False
         self.feature_names = None
-    
+
     def train(self, features: np.ndarray, feature_names: Optional[list] = None):
         """Train the Isolation Forest on baseline normal traffic.
-        
+
         Args:
             features: Feature matrix of shape (n_samples, n_features)
             feature_names: Optional list of feature names for logging
-        
+
         Raises:
             ValueError: If features have wrong shape or insufficient samples
         """
         if features.ndim != 2:
             raise ValueError(f"Features must be 2D array, got shape {features.shape}")
-        
+
         if features.shape[1] != N_FEATURES:
             raise ValueError(
                 f"Expected {N_FEATURES} features, got {features.shape[1]}"
             )
-        
+
         if features.shape[0] < MIN_TRAINING_SAMPLES:
             raise ValueError(
                 f"Need at least {MIN_TRAINING_SAMPLES} samples for training, got {features.shape[0]}"
             )
-            
+
         logger.info(f"Training Isolation Forest on {features.shape[0]} samples...")
-        
+
         # Store feature names
         self.feature_names = feature_names
-        
+
         # Fit scaler
         self.scaler.fit(features)
-        
+
         # Scale features
         features_scaled = self.scaler.transform(features)
-        
+
         # Train model
         self.model.fit(features_scaled)
         self.is_trained = True
-        
+
         logger.info(
             f"Isolation Forest trained successfully "
             f"(contamination={self.contamination}, n_estimators={self.n_estimators})"
         )
-        
+
         # Log basic statistics
         scores = self.model.score_samples(features_scaled)
         logger.info(
@@ -133,49 +133,49 @@ class IsolationForestDetector:
             f"Min: {np.min(scores):.3f}, "
             f"Max: {np.max(scores):.3f}"
         )
-    
+
     def predict(self, features: np.ndarray) -> Tuple[int, float]:
         """Predict if a sample is anomalous.
-        
+
         Args:
             features: Feature vector of shape (n_features,) or (1, n_features)
-        
+
         Returns:
             Tuple of (prediction, anomaly_score)
             - prediction: 1 for normal, -1 for anomaly
             - anomaly_score: Lower scores indicate anomalies (typically -1 to 1)
-        
+
         Raises:
             RuntimeError: If model is not trained
             ValueError: If features have wrong shape
         """
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction")
-        
+
         # Ensure 2D shape
         if features.ndim == 1:
             features = features.reshape(1, -1)
-        
+
         if features.shape[1] != N_FEATURES:
             raise ValueError(
                 f"Expected {N_FEATURES} features, got {features.shape[1]}"
             )
-        
+
         # Scale features
         features_scaled = self.scaler.transform(features)
-        
+
         # Predict
         prediction = self.model.predict(features_scaled)[0]
         anomaly_score = self.model.score_samples(features_scaled)[0]
-        
+
         return prediction, anomaly_score
-    
+
     def predict_batch(self, features: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Predict anomalies for multiple samples.
-        
+
         Args:
             features: Feature matrix of shape (n_samples, n_features)
-        
+
         Returns:
             Tuple of (predictions, anomaly_scores)
             - predictions: Array of 1 (normal) or -1 (anomaly)
@@ -183,47 +183,47 @@ class IsolationForestDetector:
         """
         if not self.is_trained:
             raise RuntimeError("Model must be trained before prediction")
-        
+
         if features.shape[1] != N_FEATURES:
             raise ValueError(
                 f"Expected {N_FEATURES} features, got {features.shape[1]}"
             )
-        
+
         # Scale features
         features_scaled = self.scaler.transform(features)
-        
+
         # Predict
         predictions = self.model.predict(features_scaled)
         anomaly_scores = self.model.score_samples(features_scaled)
-        
+
         return predictions, anomaly_scores
-    
+
     def save(self, model_path: Optional[str] = None, scaler_path: Optional[str] = None):
         """Save the trained model and scaler to disk with metadata.
-        
+
         Args:
             model_path: Path to save model (default: from ml_config)
             scaler_path: Path to save scaler (default: from ml_config)
-        
+
         Raises:
             RuntimeError: If model is not trained
         """
         if not self.is_trained:
             raise RuntimeError("Model must be trained before saving")
-        
+
         # Use default paths if not specified
         if model_path is None:
             model_path = ISOLATION_FOREST_MODEL_PATH
         if scaler_path is None:
             scaler_path = SCALER_MODEL_PATH
-        
+
         # Validate and secure paths before saving
         model_path = self._secure_path(model_path)
         scaler_path = self._secure_path(scaler_path)
-        
+
         # Ensure model directory exists with secure permissions
         os.makedirs(MODEL_DIR, mode=0o750, exist_ok=True)
-        
+
         try:
             # Create metadata
             metadata = {
@@ -237,7 +237,7 @@ class IsolationForestDetector:
                 'max_samples': self.max_samples,
                 'feature_names': self.feature_names if hasattr(self, 'feature_names') else None
             }
-            
+
             # Save model with metadata
             model_data = {
                 'model': self.model,
@@ -245,25 +245,25 @@ class IsolationForestDetector:
             }
             joblib.dump(model_data, model_path)
             joblib.dump(self.scaler, scaler_path)
-            
+
             # Sanitize paths for logging
             safe_model_path = Path(model_path).name
             safe_scaler_path = Path(scaler_path).name
             logger.info(f"Model saved to {safe_model_path} with metadata")
             logger.info(f"Scaler saved to {safe_scaler_path}")
             logger.info(f"Model version: {metadata['version']}, sklearn: {metadata['sklearn_version']}")
-            
+
         except Exception as e:
             logger.error(f"Failed to save model: {e}")
             raise
-    
+
     def load(self, model_path: Optional[str] = None, scaler_path: Optional[str] = None):
         """Load a trained model and scaler from disk with metadata validation.
-        
+
         Args:
             model_path: Path to load model from (default: from ml_config)
             scaler_path: Path to load scaler from (default: from ml_config)
-        
+
         Raises:
             FileNotFoundError: If model or scaler files don't exist
             ValueError: If model is incompatible with current configuration
@@ -273,42 +273,42 @@ class IsolationForestDetector:
             model_path = ISOLATION_FOREST_MODEL_PATH
         if scaler_path is None:
             scaler_path = SCALER_MODEL_PATH
-        
+
         # Validate and secure paths to prevent path traversal attacks
         model_path = self._secure_path(model_path)
         scaler_path = self._secure_path(scaler_path)
-        
+
         # Check if files exist
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found: {model_path}")
         if not os.path.exists(scaler_path):
             raise FileNotFoundError(f"Scaler file not found: {scaler_path}")
-        
+
         # Check file size to prevent loading malicious large files
         max_file_size = 100 * 1024 * 1024  # 100 MB
         if os.path.getsize(model_path) > max_file_size:
             raise ValueError(f"Model file too large: {os.path.getsize(model_path)} bytes")
         if os.path.getsize(scaler_path) > max_file_size:
             raise ValueError(f"Scaler file too large: {os.path.getsize(scaler_path)} bytes")
-        
+
         try:
             # Validate file integrity before loading
             self._validate_file_integrity(model_path)
             self._validate_file_integrity(scaler_path)
-            
+
             # Load model data using joblib (more secure than custom unpickler)
             model_data = joblib.load(model_path)
             self.scaler = joblib.load(scaler_path)
-            
+
             # Handle both old format (direct model) and new format (with metadata)
             if isinstance(model_data, dict) and 'model' in model_data:
                 # New format with metadata
                 self.model = model_data['model']
                 metadata = model_data.get('metadata', {})
-                
+
                 # Validate metadata
                 validation_issues = self._validate_model_metadata(metadata)
-                
+
                 # Log warnings for non-critical issues
                 for issue in validation_issues:
                     if 'CRITICAL' in issue:
@@ -316,14 +316,14 @@ class IsolationForestDetector:
                     else:
                         warnings.warn(issue)
                         logger.warning(issue)
-                
+
                 # Update detector's attributes from metadata if available
                 self.contamination = metadata.get('contamination', self.contamination)
                 self.n_estimators = metadata.get('n_estimators', self.n_estimators)
                 self.random_state = metadata.get('random_state', self.random_state)
                 self.max_samples = metadata.get('max_samples', self.max_samples)
                 self.feature_names = metadata.get('feature_names', self.feature_names)
-                
+
                 logger.info(f"Model loaded with metadata: version={metadata.get('version', 'unknown')}")
                 logger.info(f"Training date: {metadata.get('training_date', 'unknown')}")
             else:
@@ -331,50 +331,49 @@ class IsolationForestDetector:
                 self.model = model_data
                 warnings.warn("Loaded model without metadata. This is an older model format.")
                 logger.warning("Model loaded without metadata (old format)")
-            
+
             self.is_trained = True
             # Sanitize paths for logging
             safe_model_path = Path(model_path).name
             safe_scaler_path = Path(scaler_path).name
             logger.info(f"Model loaded from {safe_model_path}")
             logger.info(f"Scaler loaded from {safe_scaler_path}")
-            
+
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
-    
+
     def _validate_file_integrity(self, file_path: str):
         """Validate file integrity and safety.
-        
+
         Args:
             file_path: Path to file to validate
-            
+
         Raises:
             ValueError: If file is unsafe
         """
-        import hashlib
-        
+
         # Check file size
         file_size = os.path.getsize(file_path)
         if file_size > 100 * 1024 * 1024:  # 100MB limit
             raise ValueError(f"File too large: {file_size} bytes")
-            
+
         # Basic file header validation for joblib files
         with open(file_path, 'rb') as f:
             header = f.read(10)
             # Joblib files should start with specific bytes
             if not (header.startswith(b'\x80\x03') or header.startswith(b'\x80\x04')):
                 raise ValueError("Invalid joblib file format")
-    
+
     def _secure_path(self, path: str) -> str:
         """Secure file path to prevent traversal attacks.
-        
+
         Args:
             path: File path to secure
-            
+
         Returns:
             Secure absolute path
-            
+
         Raises:
             ValueError: If path contains traversal attempts
         """
@@ -382,10 +381,10 @@ class IsolationForestDetector:
             # Check for obvious traversal attempts
             if '..' in path or path.startswith('~'):
                 raise ValueError(f"Path traversal detected: {path}")
-            
+
             # Convert to absolute path
             secure_path = Path(path).resolve()
-            
+
             # Only create directory if path is valid and not in system directories
             if not str(secure_path).startswith(('/etc', '/sys', '/proc', '/dev')):
                 try:
@@ -393,31 +392,31 @@ class IsolationForestDetector:
                 except (PermissionError, OSError):
                     # Don't fail on directory creation issues for security validation
                     pass
-            
+
             # Validate extension
             if secure_path.suffix.lower() != '.joblib':
                 raise ValueError(f"Invalid file extension: {secure_path.suffix}")
-            
+
             return str(secure_path)
-            
+
         except Exception as e:
             raise ValueError(f"Invalid path: {path} - {e}")
-    
+
     def _validate_model_metadata(self, metadata: Dict[str, Any]) -> List[str]:
         """Validate model metadata for compatibility.
-        
+
         Args:
             metadata: Metadata dictionary from saved model
-        
+
         Returns:
             List of validation issues (warnings or critical errors)
         """
         issues = []
-        
+
         if not metadata:
             issues.append("No metadata found in model file")
             return issues
-        
+
         # Check feature count (CRITICAL)
         if 'n_features' in metadata:
             if metadata['n_features'] != N_FEATURES:
@@ -425,22 +424,22 @@ class IsolationForestDetector:
                     f"CRITICAL: Model was trained with {metadata['n_features']} features, "
                     f"but current config expects {N_FEATURES} features"
                 )
-        
+
         # Check sklearn version compatibility
         if 'sklearn_version' in metadata:
             saved_version = metadata['sklearn_version']
             current_version = sklearn.__version__
-            
+
             # Compare major versions
             saved_major = saved_version.split('.')[0]
             current_major = current_version.split('.')[0]
-            
+
             if saved_major != current_major:
                 issues.append(
                     f"sklearn major version mismatch: model trained with {saved_version}, "
                     f"current version is {current_version}. Consider retraining."
                 )
-        
+
         # Info about model age
         if 'training_date' in metadata:
             try:
@@ -452,12 +451,12 @@ class IsolationForestDetector:
                     )
             except (ValueError, TypeError):
                 pass
-        
+
         return issues
-    
+
     def get_feature_importance(self) -> Optional[np.ndarray]:
         """Get feature importance scores (not directly available in Isolation Forest).
-        
+
         Returns:
             None (Isolation Forest doesn't provide direct feature importance)
         """
@@ -465,7 +464,7 @@ class IsolationForestDetector:
         # Could implement using permutation importance if needed
         logger.warning("Feature importance not available for Isolation Forest")
         return None
-    
+
     @property
     def model_info(self) -> dict:
         """Get information about the current model."""
@@ -478,45 +477,45 @@ class IsolationForestDetector:
             'n_features': N_FEATURES,
             'feature_names': self.feature_names
         }
-    
+
     def load_from_mlflow(
-        self, 
+        self,
         model_name: str = None,
         version: Optional[int] = None,
         stage: Optional[str] = None
     ):
         """Load model from MLflow Model Registry.
-        
+
         Args:
             model_name: Model name in registry (default: from config)
             version: Specific version to load (e.g., 1, 2, 3)
             stage: Model stage to load ('Staging', 'Production', etc.)
                    If both version and stage are None, loads latest version
-        
+
         Raises:
             RuntimeError: If MLflow is not available
             ValueError: If model cannot be loaded
-        
+
         Examples:
             # Load latest version
             detector.load_from_mlflow()
-            
+
             # Load specific version
             detector.load_from_mlflow(version=2)
-            
+
             # Load production model
             detector.load_from_mlflow(stage='Production')
         """
         if not MLFLOW_AVAILABLE:
             raise RuntimeError("MLflow is not installed. Install with: pip install mlflow")
-        
+
         try:
             mlflow.set_tracking_uri(get_tracking_uri())
-            
+
             # Use default model name if not provided
             if model_name is None:
                 model_name = REGISTERED_MODEL_NAME
-            
+
             # Construct model URI
             if version is not None:
                 model_uri = f"models:/{model_name}/{version}"
@@ -528,11 +527,11 @@ class IsolationForestDetector:
                 # Load latest version
                 model_uri = f"models:/{model_name}/latest"
                 logger.info(f"Loading latest version of {model_name} from MLflow")
-            
+
             # Load the sklearn model
             loaded_model = mlflow.sklearn.load_model(model_uri)
             self.model = loaded_model
-            
+
             # Ensure S3/MinIO configuration is applied
             apply_s3_config()
 
@@ -545,36 +544,37 @@ class IsolationForestDetector:
                 elif "models:/" in model_uri:
                     # Resolve model version to get run ID
                     client = mlflow.tracking.MlflowClient()
-                    model_version_details = client.get_model_version(model_name, version or "1") # Fallback version 1 if None
+                    model_version_details = client.get_model_version(
+                        model_name, version or "1")  # Fallback version 1 if None
                     run_id = model_version_details.run_id
-                
+
                 if run_id:
                     # 2. Download scaler artifact
                     local_scaler_path = mlflow.artifacts.download_artifacts(
-                        run_id=run_id, 
+                        run_id=run_id,
                         artifact_path=f"{MODEL_ARTIFACT_PATH}/scaler.joblib"
                     )
-                    
+
                     # 3. Load scaler
                     if os.path.exists(local_scaler_path):
                         self.scaler = joblib.load(local_scaler_path)
-                        logger.info(f"Scaler loaded successfully from MLflow artifact")
+                        logger.info("Scaler loaded successfully from MLflow artifact")
                     else:
                         logger.warning(f"Scaler not found in MLflow artifacts at {local_scaler_path}")
                 else:
                     logger.warning("Could not determine Run ID to load scaler")
-                    
+
             except Exception as scaler_e:
                 logger.warning(f"Failed to load scaler from MLflow: {scaler_e}")
                 logger.warning("Using un-fitted scaler - predictions may be incorrect if data scaling is required!")
 
             self.is_trained = True
             logger.info(f"Model loaded successfully from MLflow: {model_uri}")
-            
+
         except Exception as e:
             logger.error(f"Failed to load model from MLflow: {e}")
             raise ValueError(f"Could not load model from MLflow: {e}")
-    
+
     def save_to_mlflow(
         self,
         experiment_name: str = 'cognitive-anomaly-detector',
@@ -582,49 +582,49 @@ class IsolationForestDetector:
         register_model: bool = True
     ) -> str:
         """Save model to MLflow tracking server.
-        
+
         Args:
             experiment_name: MLflow experiment name
             run_name: Optional run name
             register_model: Whether to register model to Model Registry
-        
+
         Returns:
             MLflow run ID
-        
+
         Raises:
             RuntimeError: If MLflow is not available or model not trained
         """
         if not MLFLOW_AVAILABLE:
             raise RuntimeError("MLflow is not installed. Install with: pip install mlflow")
-        
+
         if not self.is_trained:
             raise RuntimeError("Model must be trained before saving to MLflow")
-        
+
         try:
             mlflow.set_tracking_uri(get_tracking_uri())
             mlflow.set_experiment(experiment_name)
-            
+
             with mlflow.start_run(run_name=run_name) as run:
                 # Log model parameters
                 mlflow.log_param('contamination', self.contamination)
                 mlflow.log_param('n_estimators', self.n_estimators)
                 mlflow.log_param('random_state', self.random_state)
                 mlflow.log_param('max_samples', self.max_samples)
-                
+
                 # Log model
                 mlflow.sklearn.log_model(
                     self.model,
                     MODEL_ARTIFACT_PATH,
                     registered_model_name=REGISTERED_MODEL_NAME if register_model else None
                 )
-                
+
                 logger.info(f"Model saved to MLflow run: {run.info.run_id}")
-                
+
                 if register_model:
                     logger.info(f"Model registered as: {REGISTERED_MODEL_NAME}")
-                
+
                 return run.info.run_id
-                
+
         except Exception as e:
             logger.error(f"Failed to save model to MLflow: {e}")
             raise

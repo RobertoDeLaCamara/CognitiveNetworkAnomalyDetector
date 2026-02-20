@@ -1,7 +1,6 @@
 """Configuration for the anomaly detection system."""
 
 import os
-from pathlib import Path
 
 # Logging settings
 LOG_FILE = os.getenv('ANOMALY_LOG_FILE', 'anomaly_detection.log')
@@ -25,31 +24,32 @@ MAX_PATTERN_MATCHES = 10  # Maximum pattern matches to log per packet
 # Patterns are case-sensitive and should be used with proper context validation
 MALICIOUS_PATTERNS = [
     # SQL Injection patterns (high confidence)
-    b"UNION SELECT", b"' OR '1'='1'", b"' OR 1=1--", b"' OR 'x'='x'", 
+    b"UNION SELECT", b"' OR '1'='1'", b"' OR 1=1--", b"' OR 'x'='x'",
     b"admin'--", b"' UNION SELECT", b"'; DROP TABLE", b"'; DELETE FROM",
     b"xp_cmdshell", b"sp_executesql",
-    
+
     # Command injection (high confidence)
     b"; wget http", b"; curl http", b"&& wget", b"| wget",
     b"; chmod 777", b"&& chmod", b"/bin/bash -c", b"/bin/sh -c",
     b"nc -l -p", b"ncat -l",
-    
+
     # Web application attacks (high confidence)
     b"<?php system(", b"<?php exec(", b"<?php shell_exec(",
     b"eval(base64_decode(", b"system($_GET[", b"exec($_POST[",
-    
+
     # XSS patterns (high confidence)
     b"<script>alert(", b"javascript:alert(", b"<img src=x onerror=",
     b"<svg onload=", b"<iframe src=",
-    
+
     # Directory traversal (high confidence)
     b"../../../etc/passwd", b"..\\..\\..\\windows",
     b"../../../../etc/shadow", b"..\\..\\..\\boot.ini",
-    
+
     # File inclusion attacks
     b"php://filter", b"php://input", b"data://text/plain",
     b"file:///etc/passwd", b"file:///c:/windows",
 ]
+
 
 def validate_config():
     """Validate configuration values."""
@@ -61,6 +61,7 @@ def validate_config():
         raise ValueError("ICMP_THRESHOLD must be positive")
     if PAYLOAD_THRESHOLD <= 0:
         raise ValueError("PAYLOAD_THRESHOLD must be positive")
+
 
 # Validate configuration on import
 validate_config()

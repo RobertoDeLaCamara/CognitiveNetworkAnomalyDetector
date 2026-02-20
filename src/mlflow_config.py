@@ -110,11 +110,12 @@ DEFAULT_TAGS = {
 
 # ========== Helper Functions ==========
 
+
 def get_tracking_uri() -> str:
     """Get the MLflow tracking URI.
-    
+
     Prioritizes environment variable over configuration.
-    
+
     Returns:
         MLflow tracking URI string
     """
@@ -123,7 +124,7 @@ def get_tracking_uri() -> str:
 
 def is_remote_tracking() -> bool:
     """Check if using remote MLflow tracking server.
-    
+
     Returns:
         True if using remote tracking server
     """
@@ -133,10 +134,10 @@ def is_remote_tracking() -> bool:
 
 def get_experiment_name(custom_name: str = None) -> str:
     """Get experiment name with optional custom override.
-    
+
     Args:
         custom_name: Optional custom experiment name
-    
+
     Returns:
         Experiment name string
     """
@@ -145,7 +146,7 @@ def get_experiment_name(custom_name: str = None) -> str:
 
 def is_mlflow_enabled() -> bool:
     """Check if MLflow tracking is enabled.
-    
+
     Returns:
         True if MLflow is enabled
     """
@@ -156,17 +157,17 @@ def is_mlflow_enabled() -> bool:
 
 def get_run_name(prefix: str = 'run', version: int = None) -> str:
     """Generate a descriptive run name.
-    
+
     Args:
         prefix: Prefix for run name
         version: Optional version number
-    
+
     Returns:
         Formatted run name
     """
     import time
     timestamp = time.strftime('%Y%m%d_%H%M%S')
-    
+
     if version:
         return f'{prefix}_v{version}_{timestamp}'
     return f'{prefix}_{timestamp}'
@@ -174,7 +175,7 @@ def get_run_name(prefix: str = 'run', version: int = None) -> str:
 
 def get_s3_config() -> dict:
     """Get MinIO/S3 configuration for MLflow.
-    
+
     Returns:
         Dictionary with S3 configuration
     """
@@ -192,13 +193,13 @@ def get_s3_config() -> dict:
 
     aws_id = os.getenv('AWS_ACCESS_KEY_ID')
     aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY')
-    
+
     # Validate credentials format (basic validation)
     if aws_id:
         if len(aws_id) < 3 or len(aws_id) > 128 or not aws_id.replace('_', '').replace('-', '').isalnum():
             raise ValueError("Invalid AWS access key format")
         config['AWS_ACCESS_KEY_ID'] = aws_id
-        
+
     if aws_secret:
         if len(aws_secret) < 8 or len(aws_secret) > 128:
             raise ValueError("Invalid AWS secret key format")
@@ -209,7 +210,7 @@ def get_s3_config() -> dict:
 
 def apply_s3_config():
     """Apply S3/MinIO configuration to environment.
-    
+
     This sets environment variables needed for MLflow to
     connect to MinIO for artifact storage.
     """
@@ -221,21 +222,21 @@ def apply_s3_config():
 
 def validate_remote_config() -> tuple:
     """Validate remote MLflow and MinIO configuration.
-    
+
     Returns:
         Tuple of (is_valid, list_of_issues)
     """
     issues = []
-    
+
     if is_remote_tracking():
         if not REMOTE_MLFLOW_SERVER:
             issues.append("Remote tracking URI is not set")
-        
+
         # Check if MinIO credentials are set for remote tracking
         if MINIO_ENDPOINT:
             if not AWS_ACCESS_KEY_ID:
                 issues.append("AWS_ACCESS_KEY_ID not set for MinIO")
             if not AWS_SECRET_ACCESS_KEY:
                 issues.append("AWS_SECRET_ACCESS_KEY not set for MinIO")
-    
+
     return len(issues) == 0, issues
