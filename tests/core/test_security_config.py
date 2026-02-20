@@ -1,5 +1,5 @@
 import pytest
-from src.security_config import (
+from src.config.security_config import (
     validate_security_config, 
     sanitize_for_logging,
     MAX_IP_TRACKING,

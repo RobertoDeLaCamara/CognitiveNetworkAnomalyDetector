@@ -9,12 +9,12 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 import pandas as pd
 
-from .dashboard_config import (
+from src.config.dashboard_config import (
     LOG_FILE, MODEL_DIR, LOG_PATTERNS, MAX_LOG_LINES,
     FEATURE_NAMES, DATE_FORMAT, get_mlflow_uri, DB_FILE
 )
-from .logger_setup import logger
-from .db_manager import DBManager
+from src.core.logger_setup import logger
+from src.core.db_manager import DBManager
 
 
 @dataclass

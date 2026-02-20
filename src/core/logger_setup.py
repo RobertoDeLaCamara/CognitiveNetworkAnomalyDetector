@@ -4,7 +4,7 @@ import stat
 import sys
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from .config import LOG_FILE, LOG_MAX_SIZE, LOG_BACKUP_COUNT
+from src.config.config import LOG_FILE, LOG_MAX_SIZE, LOG_BACKUP_COUNT
 
 
 def _secure_log_file(log_path: str) -> None:

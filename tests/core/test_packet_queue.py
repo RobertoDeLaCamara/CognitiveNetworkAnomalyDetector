@@ -3,7 +3,7 @@
 import threading
 import time
 import pytest
-from src.packet_queue import PacketProcessor
+from src.core.packet_queue import PacketProcessor
 
 
 class TestPacketProcessor:

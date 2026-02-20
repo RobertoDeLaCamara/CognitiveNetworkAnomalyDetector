@@ -7,12 +7,12 @@ This module provides utilities for:
 - Saving trained models
 """
 
-from .ml_config import (
+from src.config.ml_config import (
     MIN_TRAINING_SAMPLES,
     TRAINING_DATA_DIR,
     MODEL_DIR
 )
-from .logger_setup import logger
+from src.core.logger_setup import logger
 import time
 import numpy as np
 import pandas as pd
@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import List, Optional
 from scapy.all import sniff
 
-from .feature_extractor import FeatureExtractor
-from .isolation_forest_detector import IsolationForestDetector
+from src.ml.feature_extractor import FeatureExtractor
+from src.ml.isolation_forest_detector import IsolationForestDetector
 # Import validation function locally to avoid circular imports
 import ipaddress
 

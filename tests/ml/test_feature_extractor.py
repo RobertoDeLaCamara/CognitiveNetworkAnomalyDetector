@@ -8,8 +8,8 @@ from scapy.all import IP, TCP, UDP, ICMP, Raw
 import sys
 sys.path.insert(0, 'src')
 
-from src.feature_extractor import FeatureExtractor, PacketHistory
-from src.ml_config import N_FEATURES
+from src.ml.feature_extractor import FeatureExtractor, PacketHistory
+from src.config.ml_config import N_FEATURES
 
 
 class TestPacketHistory:
@@ -25,7 +25,7 @@ class TestPacketHistory:
     
     def test_entropy_calculation(self):
         """Test Shannon entropy calculation."""
-        from src.utils import calculate_entropy
+        from src.core.utils import calculate_entropy
         
         # Uniform distribution (max entropy)
         uniform_data = bytes(range(256))

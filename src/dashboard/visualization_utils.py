@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
-from .dashboard_config import (
+from src.config.dashboard_config import (
     COLORS, CHART_HEIGHT, VIZ_CONFIG, ANOMALY_SCORE_THRESHOLD
 )
 

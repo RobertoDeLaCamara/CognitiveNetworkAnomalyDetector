@@ -2,9 +2,9 @@
 
 import threading
 from typing import Tuple, Optional
-from .config import MALICIOUS_PATTERNS, MAX_PAYLOAD_SCAN_SIZE
-from .logger_setup import logger
-from .utils import calculate_entropy
+from src.config.config import MALICIOUS_PATTERNS, MAX_PAYLOAD_SCAN_SIZE
+from src.core.logger_setup import logger
+from src.core.utils import calculate_entropy
 
 # Timeout for pattern matching to prevent ReDoS attacks
 PATTERN_MATCH_TIMEOUT = 1  # 1 second

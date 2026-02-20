@@ -17,15 +17,15 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List
 from scapy.all import IP, TCP, UDP, ICMP, Raw
 
-from .ml_config import (
+from src.config.ml_config import (
     FEATURE_WINDOW_SIZE,
     MAX_PACKET_HISTORY,
     FEATURE_NAMES,
     N_FEATURES,
     COMMON_PORTS
 )
-from .utils import calculate_entropy
-from .logger_setup import logger
+from src.core.utils import calculate_entropy
+from src.core.logger_setup import logger
 
 
 @dataclass

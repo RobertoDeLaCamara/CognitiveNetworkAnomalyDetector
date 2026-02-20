@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.mlflow_config import REGISTERED_MODEL_NAME
+from src.config.mlflow_config import REGISTERED_MODEL_NAME
 
 # Load environment variables
 load_dotenv()

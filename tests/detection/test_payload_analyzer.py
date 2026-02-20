@@ -1,5 +1,5 @@
 import pytest
-from src.payload_analyzer import detect_malicious_payload
+from src.detection.payload_analyzer import detect_malicious_payload
 
 # Test cases for malicious payloads (updated to match actual patterns in config)
 @pytest.mark.parametrize("payload, expected_pattern", [

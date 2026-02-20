@@ -6,10 +6,10 @@ import os
 import signal
 import argparse
 from scapy.all import sniff
-from src.anomaly_detector import analyze_packet, packet_count_per_ip
-from src.config import MONITORING_INTERVAL
-from src.logger_setup import logger
-from src.packet_queue import PacketProcessor
+from src.detection.anomaly_detector import analyze_packet, packet_count_per_ip
+from src.config.config import MONITORING_INTERVAL
+from src.core.logger_setup import logger
+from src.core.packet_queue import PacketProcessor
 
 # Global flag for graceful shutdown
 shutdown_requested = False

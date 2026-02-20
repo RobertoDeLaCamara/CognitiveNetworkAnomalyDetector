@@ -2,7 +2,7 @@
 
 import time
 from typing import Dict
-from .logger_setup import logger
+from src.core.logger_setup import logger
 
 # Optional psutil import
 try:

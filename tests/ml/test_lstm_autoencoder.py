@@ -13,7 +13,7 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-from src.ml_config import N_FEATURES
+from src.config.ml_config import N_FEATURES
 
 # Skip all tests if PyTorch not available
 pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not installed")
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(not TORCH_AVAILABLE, reason="PyTorch not install
 @pytest.fixture
 def detector():
     """Create a fresh LSTM Autoencoder detector for testing."""
-    from src.lstm_autoencoder_detector import LSTMAutoencoderDetector
+    from src.ml.lstm_autoencoder_detector import LSTMAutoencoderDetector
     return LSTMAutoencoderDetector(
         sequence_length=10,
         hidden_dim=32,
@@ -51,7 +51,7 @@ class TestLSTMAutoencoder:
     
     def test_model_creation(self):
         """Test model can be created."""
-        from src.lstm_autoencoder_detector import LSTMAutoencoder
+        from src.ml.lstm_autoencoder_detector import LSTMAutoencoder
         model = LSTMAutoencoder(
             input_dim=N_FEATURES,
             hidden_dim=32,
@@ -62,7 +62,7 @@ class TestLSTMAutoencoder:
     
     def test_model_forward(self):
         """Test forward pass produces correct shapes."""
-        from src.lstm_autoencoder_detector import LSTMAutoencoder
+        from src.ml.lstm_autoencoder_detector import LSTMAutoencoder
         model = LSTMAutoencoder(
             input_dim=N_FEATURES,
             hidden_dim=32,
@@ -78,7 +78,7 @@ class TestLSTMAutoencoder:
     
     def test_reconstruction_error(self):
         """Test reconstruction error calculation."""
-        from src.lstm_autoencoder_detector import LSTMAutoencoder
+        from src.ml.lstm_autoencoder_detector import LSTMAutoencoder
         model = LSTMAutoencoder(
             input_dim=N_FEATURES,
             hidden_dim=32,
@@ -166,7 +166,7 @@ class TestLSTMAutoencoderDetector:
             assert (Path(tmpdir) / 'lstm_config.json').exists()
             
             # Load into new detector
-            from src.lstm_autoencoder_detector import LSTMAutoencoderDetector
+            from src.ml.lstm_autoencoder_detector import LSTMAutoencoderDetector
             new_detector = LSTMAutoencoderDetector()
             success = new_detector.load(tmpdir)
             

@@ -9,7 +9,7 @@ import queue
 import threading
 from typing import Callable
 
-from .logger_setup import logger
+from src.core.logger_setup import logger
 
 
 class PacketProcessor:

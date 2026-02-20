@@ -26,8 +26,8 @@ else:
     sys.exit(1)
 
 try:
-    from src.model_trainer import ModelTrainer
-    from src.logger_setup import logger
+    from src.ml.model_trainer import ModelTrainer
+    from src.core.logger_setup import logger
 except ImportError as e:
     print(f"Error importing required modules: {e}")
     sys.exit(1)
@@ -164,7 +164,7 @@ Examples:
         parser.error(str(e))
     
     # Load configuration
-    from src.ml_config import MIN_TRAINING_SAMPLES
+    from src.config.ml_config import MIN_TRAINING_SAMPLES
 
     try:
         # Check if running with appropriate privileges for packet capture
@@ -279,7 +279,7 @@ Examples:
         # Print MLflow info if enabled
         if trainer.mlflow_enabled and 'mlflow_run_id' in stats:
             logger.info(f"   MLflow run ID: {stats['mlflow_run_id']}")
-            from src.mlflow_config import get_tracking_uri
+            from src.config.mlflow_config import get_tracking_uri
             tracking_uri = get_tracking_uri()
             if tracking_uri.startswith('http'):
                 logger.info(f"   View in MLflow UI: {tracking_uri}")

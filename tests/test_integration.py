@@ -14,11 +14,11 @@ from scapy.all import IP, TCP, UDP, ICMP, Raw
 import sys
 sys.path.insert(0, 'src')
 
-from src.feature_extractor import FeatureExtractor
-from src.isolation_forest_detector import IsolationForestDetector
-from src.anomaly_detector import PacketAnalyzer
-from src.model_trainer import ModelTrainer
-from src.ml_config import N_FEATURES
+from src.ml.feature_extractor import FeatureExtractor
+from src.ml.isolation_forest_detector import IsolationForestDetector
+from src.detection.anomaly_detector import PacketAnalyzer
+from src.ml.model_trainer import ModelTrainer
+from src.config.ml_config import N_FEATURES
 
 
 class TestEndToEndDetection:
@@ -385,7 +385,7 @@ class TestModelTrainerWorkflow:
             trainer.train_model()
             
             # Save with version
-            with patch('src.model_trainer.MODEL_DIR', tmpdir):
+            with patch('src.ml.model_trainer.MODEL_DIR', tmpdir):
                 trainer.save_model(version=5, register_model=False)
                 
                 model_file = os.path.join(tmpdir, 'isolation_forest_v5.joblib')

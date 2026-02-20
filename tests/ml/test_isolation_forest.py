@@ -8,8 +8,8 @@ import tempfile
 import sys
 sys.path.insert(0, 'src')
 
-from src.isolation_forest_detector import IsolationForestDetector
-from src.ml_config import N_FEATURES
+from src.ml.isolation_forest_detector import IsolationForestDetector
+from src.config.ml_config import N_FEATURES
 
 
 class TestIsolationForestDetector:

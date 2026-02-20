@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from scapy.all import IP, ICMP, TCP, UDP, Raw
-from src.anomaly_detector import PacketAnalyzer
+from src.detection.anomaly_detector import PacketAnalyzer
 import os
 
 # Mock the logger to prevent it from writing to a file during tests
@@ -12,7 +12,7 @@ def mock_logger():
 
     This fixture is marked as autouse=True, meaning it will be automatically used by all tests.
     """
-    with patch('src.anomaly_detector.logger') as mock_log:
+    with patch('src.detection.anomaly_detector.logger') as mock_log:
         yield mock_log
 
 @pytest.fixture(autouse=True)
@@ -21,7 +21,7 @@ def mock_resource_monitor():
     Fixture to mock the resource monitor so that tests are not affected by
     actual container resource pressure (e.g. high memory from torch imports).
     """
-    with patch('src.anomaly_detector.resource_monitor') as mock_rm:
+    with patch('src.detection.anomaly_detector.resource_monitor') as mock_rm:
         mock_rm.should_throttle.return_value = False
         yield mock_rm
 
@@ -233,10 +233,10 @@ class TestMLDetectionPaths:
         mock_feature_extractor = MagicMock()
         mock_ml_detector = MagicMock()
 
-        with patch('src.anomaly_detector.ML_AVAILABLE', True):
-            with patch('src.anomaly_detector.ML_ENABLED', True):
-                with patch('src.anomaly_detector.FeatureExtractor', return_value=mock_feature_extractor):
-                    with patch('src.anomaly_detector.IsolationForestDetector', return_value=mock_ml_detector):
+        with patch('src.detection.anomaly_detector.ML_AVAILABLE', True):
+            with patch('src.detection.anomaly_detector.ML_ENABLED', True):
+                with patch('src.detection.anomaly_detector.FeatureExtractor', return_value=mock_feature_extractor):
+                    with patch('src.detection.anomaly_detector.IsolationForestDetector', return_value=mock_ml_detector):
 
                         with patch('os.path.exists', return_value=False):
                             with patch.dict(os.environ, {'MLFLOW_ENABLE_REMOTE_LOADING': 'false'}):

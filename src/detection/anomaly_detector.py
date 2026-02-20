@@ -8,23 +8,23 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Tuple
 from scapy.all import IP, ICMP, TCP, UDP, Raw
-from .logger_setup import logger
-from .payload_analyzer import detect_malicious_payload
-from .config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD, TRUSTED_SUBNETS
-from .resource_monitor import resource_monitor
-from .db_manager import DBManager
+from src.core.logger_setup import logger
+from src.detection.payload_analyzer import detect_malicious_payload
+from src.config.config import THRESHOLD_MULTIPLIER, HIGH_TRAFFIC_PORTS, ICMP_THRESHOLD, PAYLOAD_THRESHOLD, TRUSTED_SUBNETS
+from src.core.resource_monitor import resource_monitor
+from src.core.db_manager import DBManager
 
 # ML imports
 try:
-    from .feature_extractor import FeatureExtractor
-    from .isolation_forest_detector import IsolationForestDetector
-    from .ml_config import (
+    from src.ml.feature_extractor import FeatureExtractor
+    from src.ml.isolation_forest_detector import IsolationForestDetector
+    from src.config.ml_config import (
         ML_ENABLED,
         MIN_PACKETS_FOR_ML,
         ISOLATION_FOREST_MODEL_PATH,
         SCALER_MODEL_PATH
     )
-    from .ensemble_scorer import EnsembleScorer, EngineResult
+    from src.detection.ensemble_scorer import EnsembleScorer, EngineResult
     ML_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"ML components not available: {e}")
@@ -33,7 +33,7 @@ except ImportError as e:
 
 # LSTM imports (optional — model may not be trained yet)
 try:
-    from .lstm_autoencoder_detector import LSTMAutoencoderDetector, LSTM_MODEL_PATH
+    from src.ml.lstm_autoencoder_detector import LSTMAutoencoderDetector, LSTM_MODEL_PATH
     LSTM_AVAILABLE = True
 except ImportError:
     LSTM_AVAILABLE = False

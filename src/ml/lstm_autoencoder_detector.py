@@ -37,12 +37,12 @@ except ImportError:
 
 from sklearn.preprocessing import StandardScaler
 
-from .ml_config import (
+from src.config.ml_config import (
     N_FEATURES,
     MIN_TRAINING_SAMPLES,
     MODEL_DIR,
 )
-from .logger_setup import logger
+from src.core.logger_setup import logger
 
 # MLflow imports (optional)
 try:

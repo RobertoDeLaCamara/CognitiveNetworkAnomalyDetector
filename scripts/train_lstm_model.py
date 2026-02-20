@@ -23,9 +23,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import numpy as np
 import pandas as pd
 
-from src.lstm_autoencoder_detector import LSTMAutoencoderDetector
-from src.ml_config import FEATURE_NAMES, N_FEATURES
-from src.logger_setup import logger
+from src.ml.lstm_autoencoder_detector import LSTMAutoencoderDetector
+from src.config.ml_config import FEATURE_NAMES, N_FEATURES
+from src.core.logger_setup import logger
 
 
 def load_training_data(file_path: str) -> np.ndarray:
@@ -44,7 +44,7 @@ def load_training_data(file_path: str) -> np.ndarray:
 
 def collect_live_traffic(duration: int) -> np.ndarray:
     """Collect live network traffic for training."""
-    from src.feature_extractor import FeatureExtractor
+    from src.ml.feature_extractor import FeatureExtractor
     from scapy.all import sniff, IP
     
     logger.info(f"Collecting live traffic for {duration} seconds...")

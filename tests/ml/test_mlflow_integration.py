@@ -14,9 +14,9 @@ from pathlib import Path
 import sys
 sys.path.insert(0, 'src')
 
-from src.model_trainer import ModelTrainer, MLFLOW_AVAILABLE
-from src.isolation_forest_detector import IsolationForestDetector
-from src.ml_config import N_FEATURES
+from src.ml.model_trainer import ModelTrainer, MLFLOW_AVAILABLE
+from src.ml.isolation_forest_detector import IsolationForestDetector
+from src.config.ml_config import N_FEATURES
 
 # Skip all MLflow tests if MLflow is not installed
 pytestmark = pytest.mark.skipif(
@@ -63,7 +63,7 @@ class TestMLflowConfiguration:
     
     def test_mlflow_config_import(self):
         """Test that mlflow_config module imports successfully."""
-        from src.mlflow_config import (
+        from src.config.mlflow_config import (
             get_tracking_uri,
             get_experiment_name,
             is_mlflow_enabled,
@@ -77,7 +77,7 @@ class TestMLflowConfiguration:
     
     def test_mlflow_directories_created(self):
         """Test that MLflow directories are created."""
-        from src.mlflow_config import MLFLOW_DIR
+        from src.config.mlflow_config import MLFLOW_DIR
         
         assert MLFLOW_DIR.exists()
         assert (MLFLOW_DIR / 'mlruns').exists()

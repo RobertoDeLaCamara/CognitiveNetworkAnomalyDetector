@@ -22,7 +22,7 @@ try:
     # Load environment variables from .env file
     load_dotenv()
     
-    from src.mlflow_config import (
+    from src.config.mlflow_config import (
         get_tracking_uri,
         is_remote_tracking,
         MINIO_ENDPOINT,

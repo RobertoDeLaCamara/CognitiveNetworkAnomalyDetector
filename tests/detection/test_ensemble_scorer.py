@@ -2,7 +2,7 @@
 
 import os
 import pytest
-from src.ensemble_scorer import EnsembleScorer, EngineResult, EnsembleResult
+from src.detection.ensemble_scorer import EnsembleScorer, EngineResult, EnsembleResult
 
 
 class TestNormalization:

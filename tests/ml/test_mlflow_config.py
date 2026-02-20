@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
-from src.mlflow_config import (
+from src.config.mlflow_config import (
     get_tracking_uri,
     is_remote_tracking,
     get_experiment_name,
@@ -44,22 +44,22 @@ class TestIsRemoteTracking:
     
     def test_http_uri_returns_true(self):
         """Test that HTTP URIs are detected as remote."""
-        with patch('src.mlflow_config.get_tracking_uri', return_value='http://mlflow:5000'):
+        with patch('src.config.mlflow_config.get_tracking_uri', return_value='http://mlflow:5000'):
             assert is_remote_tracking() is True
     
     def test_https_uri_returns_true(self):
         """Test that HTTPS URIs are detected as remote."""
-        with patch('src.mlflow_config.get_tracking_uri', return_value='https://mlflow.example.com'):
+        with patch('src.config.mlflow_config.get_tracking_uri', return_value='https://mlflow.example.com'):
             assert is_remote_tracking() is True
     
     def test_file_uri_returns_false(self):
         """Test that file URIs are detected as local."""
-        with patch('src.mlflow_config.get_tracking_uri', return_value='file:///tmp/mlruns'):
+        with patch('src.config.mlflow_config.get_tracking_uri', return_value='file:///tmp/mlruns'):
             assert is_remote_tracking() is False
     
     def test_local_path_returns_false(self):
         """Test that local paths are detected as local."""
-        with patch('src.mlflow_config.get_tracking_uri', return_value='/tmp/mlruns'):
+        with patch('src.config.mlflow_config.get_tracking_uri', return_value='/tmp/mlruns'):
             assert is_remote_tracking() is False
 
 
@@ -204,7 +204,7 @@ class TestApplyS3Config:
             'AWS_SECRET_ACCESS_KEY': 'test_secret'
         }
         
-        with patch('src.mlflow_config.get_s3_config', return_value=test_config):
+        with patch('src.config.mlflow_config.get_s3_config', return_value=test_config):
             with patch.dict(os.environ, {}, clear=True):
                 apply_s3_config()
                 
@@ -219,7 +219,7 @@ class TestApplyS3Config:
             'AWS_ACCESS_KEY_ID': 'test_id'
         }
         
-        with patch('src.mlflow_config.get_s3_config', return_value=test_config):
+        with patch('src.config.mlflow_config.get_s3_config', return_value=test_config):
             with patch.dict(os.environ, {}, clear=True):
                 apply_s3_config()
                 
@@ -232,27 +232,27 @@ class TestValidateRemoteConfig:
     
     def test_valid_local_config(self):
         """Test validation passes for local tracking."""
-        with patch('src.mlflow_config.is_remote_tracking', return_value=False):
+        with patch('src.config.mlflow_config.is_remote_tracking', return_value=False):
             is_valid, issues = validate_remote_config()
             assert is_valid is True
             assert len(issues) == 0
     
     def test_valid_remote_config_without_minio(self):
         """Test validation passes for remote tracking without MinIO."""
-        with patch('src.mlflow_config.is_remote_tracking', return_value=True):
-            with patch('src.mlflow_config.REMOTE_MLFLOW_SERVER', 'http://mlflow:5000'):
-                with patch('src.mlflow_config.MINIO_ENDPOINT', None):
+        with patch('src.config.mlflow_config.is_remote_tracking', return_value=True):
+            with patch('src.config.mlflow_config.REMOTE_MLFLOW_SERVER', 'http://mlflow:5000'):
+                with patch('src.config.mlflow_config.MINIO_ENDPOINT', None):
                     is_valid, issues = validate_remote_config()
                     assert is_valid is True
                     assert len(issues) == 0
     
     def test_invalid_remote_config_missing_credentials(self):
         """Test validation fails when MinIO credentials missing."""
-        with patch('src.mlflow_config.is_remote_tracking', return_value=True):
-            with patch('src.mlflow_config.REMOTE_MLFLOW_SERVER', 'http://mlflow:5000'):
-                with patch('src.mlflow_config.MINIO_ENDPOINT', 'http://minio:9000'):
-                    with patch('src.mlflow_config.AWS_ACCESS_KEY_ID', None):
-                        with patch('src.mlflow_config.AWS_SECRET_ACCESS_KEY', None):
+        with patch('src.config.mlflow_config.is_remote_tracking', return_value=True):
+            with patch('src.config.mlflow_config.REMOTE_MLFLOW_SERVER', 'http://mlflow:5000'):
+                with patch('src.config.mlflow_config.MINIO_ENDPOINT', 'http://minio:9000'):
+                    with patch('src.config.mlflow_config.AWS_ACCESS_KEY_ID', None):
+                        with patch('src.config.mlflow_config.AWS_SECRET_ACCESS_KEY', None):
                             is_valid, issues = validate_remote_config()
                             assert is_valid is False
                             assert len(issues) > 0
@@ -260,11 +260,11 @@ class TestValidateRemoteConfig:
     
     def test_returns_specific_issues(self):
         """Test that specific issues are returned."""
-        with patch('src.mlflow_config.is_remote_tracking', return_value=True):
-            with patch('src.mlflow_config.REMOTE_MLFLOW_SERVER', 'http://mlflow:5000'):
-                with patch('src.mlflow_config.MINIO_ENDPOINT', 'http://minio:9000'):
-                    with patch('src.mlflow_config.AWS_ACCESS_KEY_ID', None):
-                        with patch('src.mlflow_config.AWS_SECRET_ACCESS_KEY', 'secret'):
+        with patch('src.config.mlflow_config.is_remote_tracking', return_value=True):
+            with patch('src.config.mlflow_config.REMOTE_MLFLOW_SERVER', 'http://mlflow:5000'):
+                with patch('src.config.mlflow_config.MINIO_ENDPOINT', 'http://minio:9000'):
+                    with patch('src.config.mlflow_config.AWS_ACCESS_KEY_ID', None):
+                        with patch('src.config.mlflow_config.AWS_SECRET_ACCESS_KEY', 'secret'):
                             is_valid, issues = validate_remote_config()
                             assert is_valid is False
                             # Should have issue about missing access key

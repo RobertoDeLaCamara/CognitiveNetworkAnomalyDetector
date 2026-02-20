@@ -14,24 +14,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import dashboard modules
-from src.dashboard_config import (
+from src.config.dashboard_config import (
     DASHBOARD_TITLE, DASHBOARD_ICON, DEFAULT_REFRESH_INTERVAL,
     COLORS, MLFLOW_ENABLED, MAX_ANOMALIES_DISPLAY
 )
-from src.dashboard_data import (
+from src.dashboard.dashboard_data import (
     AnomalyDataLoader, ModelMetricsLoader, MLflowDataLoader
 )
-from src.visualization_utils import (
+from src.dashboard.visualization_utils import (
     plot_anomaly_timeline, plot_score_distribution,
     plot_anomaly_rate_over_time, plot_top_ips,
     plot_alert_type_distribution
 )
-from src.dashboard_extensions import (
+from src.dashboard.dashboard_extensions import (
     plot_port_distribution, plot_hourly_heatmap, generate_html_report,
     plot_ip_category_distribution, get_known_ips_table
 )
-import src.config as app_config
-import src.ml_config as ml_config
+import src.config.config as app_config
+import src.config.ml_config as ml_config
 
 
 # Page configuration
@@ -477,7 +477,7 @@ elif page == "🤖 Model Info":
         st.markdown("---")
         st.subheader("Feature Names")
         
-        from src.dashboard_config import FEATURE_NAMES
+        from src.config.dashboard_config import FEATURE_NAMES
         
         # Display features in a nice grid
         cols = st.columns(3)

@@ -18,7 +18,7 @@ sys.path.insert(0, str(script_dir / 'src'))
 
 try:
     import mlflow
-    from src.mlflow_config import (
+    from src.config.mlflow_config import (
         MLFLOW_DIR,
         get_tracking_uri,
         DEFAULT_EXPERIMENT_NAME,

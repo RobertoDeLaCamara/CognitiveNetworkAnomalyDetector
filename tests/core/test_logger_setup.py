@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock, mock_open
 import pytest
 
-from src.logger_setup import (
+from src.core.logger_setup import (
     setup_logger,
     _validate_log_path,
     _secure_log_file
@@ -94,7 +94,7 @@ class TestSetupLogger:
         """Test basic logger creation with valid path."""
         log_file = tmp_path / "test.log"
         
-        with patch('src.logger_setup.LOG_FILE', str(log_file)):
+        with patch('src.core.logger_setup.LOG_FILE', str(log_file)):
             logger = setup_logger('test_logger')
             
             assert logger is not None
@@ -106,7 +106,7 @@ class TestSetupLogger:
         """Test that logger with existing handlers is returned as-is."""
         log_file = tmp_path / "test.log"
         
-        with patch('src.logger_setup.LOG_FILE', str(log_file)):
+        with patch('src.core.logger_setup.LOG_FILE', str(log_file)):
             logger1 = setup_logger('test_logger_2')
             logger2 = setup_logger('test_logger_2')
             
@@ -118,8 +118,8 @@ class TestSetupLogger:
         """Test fallback to console logging when file creation fails."""
         invalid_path = "/nonexistent/cannot/create/this.log"
         
-        with patch('src.logger_setup.LOG_FILE', invalid_path):
-            with patch('src.logger_setup._validate_log_path', return_value=invalid_path):
+        with patch('src.core.logger_setup.LOG_FILE', invalid_path):
+            with patch('src.core.logger_setup._validate_log_path', return_value=invalid_path):
                 logger = setup_logger('test_logger_3')
                 
                 assert logger is not None
@@ -134,7 +134,7 @@ class TestSetupLogger:
         log_dir = Path('test_logs_subdir')
         log_file = log_dir / 'test.log'
         
-        with patch('src.logger_setup.LOG_FILE', str(log_file)):
+        with patch('src.core.logger_setup.LOG_FILE', str(log_file)):
             logger = setup_logger('test_logger_4')
             
             assert logger is not None
@@ -148,7 +148,7 @@ class TestSetupLogger:
     
     def test_exception_fallback_logger(self):
         """Test that exception during setup creates fallback logger."""
-        with patch('src.logger_setup._validate_log_path', 
+        with patch('src.core.logger_setup._validate_log_path', 
                    side_effect=Exception("Validation failed")):
             logger = setup_logger('test_logger_5')
             
@@ -162,7 +162,7 @@ class TestSetupLogger:
         # Use rel path within cwd
         log_file = 'test_propagate.log'
         
-        with patch('src.logger_setup.LOG_FILE', log_file):
+        with patch('src.core.logger_setup.LOG_FILE', log_file):
             logger = setup_logger('test_logger_6')
             
             assert logger.propagate is False
@@ -176,7 +176,7 @@ class TestSetupLogger:
         """Test that logger has correct formatter."""
         log_file = tmp_path / "test.log"
         
-        with patch('src.logger_setup.LOG_FILE', str(log_file)):
+        with patch('src.core.logger_setup.LOG_FILE', str(log_file)):
             logger = setup_logger('test_logger_7')
             
             handler = logger.handlers[0]
@@ -187,6 +187,6 @@ class TestSetupLogger:
     
     def test_default_logger_instance_created(self):
         """Test that default logger instance is created at module level."""
-        from src.logger_setup import logger
+        from src.core.logger_setup import logger
         assert logger is not None
         assert isinstance(logger, logging.Logger)

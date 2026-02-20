@@ -16,7 +16,7 @@ from sklearn.ensemble import IsolationForest
 import sklearn
 from sklearn.preprocessing import StandardScaler
 
-from .ml_config import (
+from src.config.ml_config import (
     CONTAMINATION,
     N_ESTIMATORS,
     RANDOM_STATE,
@@ -27,7 +27,7 @@ from .ml_config import (
     N_FEATURES,
     MIN_TRAINING_SAMPLES
 )
-from .logger_setup import logger
+from src.core.logger_setup import logger
 
 # MLflow imports (optional)
 try:
