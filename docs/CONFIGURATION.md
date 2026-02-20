@@ -1,6 +1,6 @@
 # Configuration Reference
 
-## Rule-Based Detection (`src/config.py`)
+## Rule-Based Detection (`src/config/config.py`)
 
 | Setting | Default | Description |
 |---|---|---|
@@ -9,7 +9,7 @@
 | `ICMP_THRESHOLD` | `50` | ICMP packet count to trigger flood alert |
 | `PAYLOAD_THRESHOLD` | `100` | Payload size (bytes) to flag as large |
 
-## ML & Ensemble Settings (`src/ml_config.py`)
+## ML & Ensemble Settings (`src/config/ml_config.py`)
 
 | Setting | Default | Description |
 |---|---|---|
@@ -51,7 +51,7 @@ AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 ```
 
-## Dashboard Settings (`src/dashboard_config.py`)
+## Dashboard Settings (`src/config/dashboard_config.py`)
 
 ```python
 DEFAULT_REFRESH_INTERVAL = 2    # seconds between auto-refresh
@@ -71,7 +71,7 @@ COLORS = {
 ## Training CLI Parameters
 
 ```bash
-python train_model.py [options]
+python scripts/train_model.py [options]
 ```
 
 | Parameter | Description | Example |
@@ -85,7 +85,7 @@ python train_model.py [options]
 | `--no-mlflow` | Disable MLflow for this run | |
 
 ```bash
-python train_lstm_model.py [options]
+python scripts/train_lstm_model.py [options]
 ```
 
 | Parameter | Description | Default |

@@ -45,12 +45,12 @@ If the dashboard shows no anomalies:
 sudo venv/bin/python main.py --duration 60
 
 # Option 2: inject synthetic traffic
-python inject_synthetic_traffic.py
+python scripts/inject_synthetic_traffic.py
 ```
 
 ## Configuration
 
-Edit `src/dashboard_config.py` to adjust display limits and colors. See [CONFIGURATION.md](CONFIGURATION.md).
+Edit `src/config/dashboard_config.py` to adjust display limits and colors. See [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Troubleshooting
 

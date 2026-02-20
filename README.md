@@ -46,29 +46,17 @@ For Docker, full install options, and MLflow remote setup see [SETUP.md](SETUP.m
 
 ```
 ├── src/
-│   ├── anomaly_detector.py         # Triple detection engine + ensemble
-│   ├── ensemble_scorer.py          # Weighted scoring
-│   ├── feature_extractor.py        # 18-feature extraction per IP
-│   ├── isolation_forest_detector.py
-│   ├── lstm_autoencoder_detector.py
-│   ├── packet_queue.py             # Async packet processing
-│   ├── payload_analyzer.py         # Malicious pattern matching
-│   ├── db_manager.py               # SQLite persistence
-│   ├── model_trainer.py            # Training pipeline (MLflow integration)
-│   ├── config.py                   # Rule thresholds
-│   ├── ml_config.py                # ML & ensemble settings
-│   └── mlflow_config.py            # MLflow / MinIO config
-├── scripts/                        # Training & utility scripts
-│   ├── train_model.py              # Isolation Forest training
-│   ├── train_lstm_model.py         # LSTM training
-│   ├── auto_train_lstm.sh          # Auto-training & hot-reload script
-│   ├── generate_synthetic_data.py
-│   └── promote_latest.py           # MLflow model promotion
-├── tests/                          # 14 test files (unit + integration)
-├── models/                         # Trained model files
-├── data/                           # Training data
-├── main.py                         # Detection entry point
-├── dashboard.py                    # Streamlit dashboard
+│   ├── core/              # Infrastructure (DB, Queue, Logging)
+│   ├── detection/         # Triple detection engine + ensemble
+│   ├── ml/                # Machine Learning (Feature extraction, detectors, trainer)
+│   ├── config/            # Rule thresholds and ML settings
+│   └── dashboard/         # Dashboard-specific logic
+├── scripts/               # Training & utility scripts
+├── tests/                 # Organized by component (core, detection, ml)
+├── models/                # Trained model files
+├── data/                  # Training data
+├── main.py                # Detection entry point
+├── dashboard.py           # Streamlit dashboard
 └── docker-compose.yml
 ```
 

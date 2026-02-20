@@ -22,8 +22,8 @@ pip install -r requirements.txt
 
 ```bash
 # Generate synthetic baseline data and train
-python generate_synthetic_data.py
-python train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/generate_synthetic_data.py
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
 
 # Start detection (requires root for packet capture)
 sudo venv/bin/python main.py
@@ -41,8 +41,8 @@ sudo python main.py              # wrong — uses system Python
 **Too few training samples**
 ```bash
 # Use synthetic data instead of live capture
-python generate_synthetic_data.py
-python train_model.py --from-file data/training/synthetic_baseline.csv
+python scripts/generate_synthetic_data.py
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv
 ```
 
 **Model not found**
@@ -112,7 +112,7 @@ AWS_SECRET_ACCESS_KEY=your_secret_key
 ### Test the connection
 
 ```bash
-python test_mlflow_connection.py
+python scripts/test_mlflow_connection.py
 # Expected:
 # ✅ MLflow Server:  PASS
 # ✅ MinIO Storage:  PASS
@@ -123,10 +123,10 @@ python test_mlflow_connection.py
 
 ```bash
 # Remote (default when .env is configured)
-python train_model.py --duration 60 --version 1
+python scripts/train_model.py --duration 60 --version 1
 
 # Force local for a single run
-MLFLOW_TRACKING_URI="" python train_model.py --duration 60 --no-mlflow
+MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --no-mlflow
 
 # View local experiments
 mlflow ui --backend-store-uri file://$(pwd)/.mlflow/mlruns
