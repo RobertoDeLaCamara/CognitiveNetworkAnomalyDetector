@@ -12,6 +12,10 @@ import os
 from pathlib import Path
 
 # Add src to path securely
+project_root = str(Path(__file__).resolve().parent.parent)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 try:
     import mlflow
     from mlflow.tracking import MlflowClient

@@ -48,7 +48,7 @@ from src.core.logger_setup import logger
 try:
     import mlflow
     import mlflow.pytorch
-    from .mlflow_config import (
+    from src.config.mlflow_config import (
         get_tracking_uri,
         apply_s3_config
     )

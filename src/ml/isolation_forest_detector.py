@@ -33,7 +33,7 @@ from src.core.logger_setup import logger
 try:
     import mlflow
     import mlflow.sklearn
-    from .mlflow_config import (
+    from src.config.mlflow_config import (
         get_tracking_uri,
         REGISTERED_MODEL_NAME,
         MODEL_ARTIFACT_PATH,

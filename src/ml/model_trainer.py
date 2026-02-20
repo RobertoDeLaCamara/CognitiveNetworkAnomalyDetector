@@ -40,7 +40,7 @@ try:
     import mlflow
     import mlflow.sklearn
     from mlflow.models.signature import infer_signature
-    from .mlflow_config import (
+    from src.config.mlflow_config import (
         get_tracking_uri,
         get_experiment_name,
         is_mlflow_enabled,
