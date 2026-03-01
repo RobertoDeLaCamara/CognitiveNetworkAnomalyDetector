@@ -1,7 +1,7 @@
 # Cognitive Anomaly Detector
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 
 Network anomaly detection with triple-engine ensemble: Isolation Forest (40%) + LSTM Autoencoder/PyTorch (40%) + rule-based engine (20%). Scapy packet capture, 18 per-IP feature extraction, MLflow tracking, Streamlit dashboard.
 
