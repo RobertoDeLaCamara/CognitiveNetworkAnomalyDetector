@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 # Base paths
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 MODEL_DIR = PROJECT_ROOT / "models"
 LOG_FILE = PROJECT_ROOT / "anomaly_detection.log"
