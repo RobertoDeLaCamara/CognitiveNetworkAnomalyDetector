@@ -266,11 +266,11 @@ elif page == "📊 Historical Analysis":
         
         col1, col2, col3, col4 = st.columns(4)
         
-        ml_df = df[df['alert_type'] == 'ML']
-        
+        ml_df = df[df['alert_type'].str.startswith('ML')]
+
         with col1:
             st.metric("Total Anomalies", len(df))
-        
+
         with col2:
             st.metric("ML Anomalies", len(ml_df))
         
@@ -377,7 +377,7 @@ elif page == "🔍 Anomaly Inspector":
         search_ip = st.text_input("IP Address", placeholder="e.g., 192.168.1.100")
     
     with col2:
-        alert_type_filter = st.selectbox("Alert Type", ["All", "ML", "RULE"])
+        alert_type_filter = st.selectbox("Alert Type", ["All", "ML", "ML_ENSEMBLE", "RULE", "ICMP_FLOOD"])
     
     with col3:
         min_score = st.number_input(
@@ -397,9 +397,9 @@ elif page == "🔍 Anomaly Inspector":
         
         if alert_type_filter != "All":
             df = df[df['alert_type'] == alert_type_filter]
-        
-        if alert_type_filter == "ML" or alert_type_filter == "All":
-            df = df[(df['alert_type'] == 'RULE') | (df['anomaly_score'] <= min_score)]
+
+        if min_score > 0:
+            df = df[(~df['alert_type'].str.startswith('ML')) | (df['anomaly_score'] >= min_score)]
     
     st.info(f"Found {len(df)} matching anomalies")
     
@@ -438,7 +438,7 @@ elif page == "🔍 Anomaly Inspector":
                     st.markdown("**Alert Type:**")
                     st.write(anomaly['alert_type'])
                     
-                    if anomaly['alert_type'] == 'ML':
+                    if str(anomaly['alert_type']).startswith('ML'):
                         st.markdown("**Anomaly Score:**")
                         st.write(f"{anomaly['anomaly_score']:.4f}")
                 
@@ -543,8 +543,8 @@ elif page == "📑 Reports":
             # A better way would be adding dates to get_anomaly_stats, but we'll calc key ones manually or mock
             filtered_stats = {
                 "total_anomalies": len(df_report),
-                "ml_anomalies": len(df_report[df_report['alert_type'] == 'ML']),
-                "rule_anomalies": len(df_report[df_report['alert_type'] == 'RULE']),
+                "ml_anomalies": len(df_report[df_report['alert_type'].str.startswith('ML')]),
+                "rule_anomalies": len(df_report[~df_report['alert_type'].str.startswith('ML')]),
                 "unique_ips": df_report['ip_address'].nunique()
             }
             
