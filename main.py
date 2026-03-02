@@ -5,6 +5,10 @@ import sys
 import os
 import signal
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from scapy.all import sniff
 from src.detection.anomaly_detector import analyze_packet, packet_count_per_ip
 from src.config.config import MONITORING_INTERVAL

@@ -349,18 +349,19 @@ class ModelTrainer:
                 import joblib
                 import os
                 if self.detector.scaler:
-                    # Save scaler as artifact with secure temp file
-                    with tempfile.NamedTemporaryFile(suffix=".joblib", delete=False) as tmp_file:
+                    # Save scaler with predictable name so loader can find it
+                    tmpdir = tempfile.mkdtemp()
+                    scaler_path = os.path.join(tmpdir, "scaler.joblib")
+                    try:
+                        joblib.dump(self.detector.scaler, scaler_path)
+                        mlflow.log_artifact(scaler_path, artifact_path=MODEL_ARTIFACT_PATH)
+                        logger.info("Scaler logged to MLflow artifacts as scaler.joblib")
+                    finally:
                         try:
-                            joblib.dump(self.detector.scaler, tmp_file.name)
-                            mlflow.log_artifact(tmp_file.name, artifact_path=MODEL_ARTIFACT_PATH)
-                            logger.info("Scaler logged to MLflow artifacts as scaler.joblib")
-                        finally:
-                            # Ensure cleanup
-                            try:
-                                os.unlink(tmp_file.name)
-                            except OSError:
-                                pass
+                            os.unlink(scaler_path)
+                            os.rmdir(tmpdir)
+                        except OSError:
+                            pass
             except Exception as e:
                 logger.warning(f"Could not log scaler artifact: {e}")
 

@@ -52,7 +52,7 @@ def _get_model_path(relative_path: str) -> str:
 
     if os.path.isabs(relative_path):
         # Only allow paths within project directory
-        project_root = Path(__file__).parent.parent
+        project_root = Path(__file__).parent.parent.parent
         abs_path = Path(relative_path)
         try:
             abs_path.relative_to(project_root)
@@ -60,7 +60,7 @@ def _get_model_path(relative_path: str) -> str:
         except ValueError:
             raise ValueError(f"Path outside project directory: {relative_path}")
 
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     return str(project_root / relative_path)
 
 

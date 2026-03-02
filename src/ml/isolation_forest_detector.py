@@ -544,23 +544,65 @@ class IsolationForestDetector:
                 elif "models:/" in model_uri:
                     # Resolve model version to get run ID
                     client = mlflow.tracking.MlflowClient()
-                    model_version_details = client.get_model_version(
-                        model_name, version or "1")  # Fallback version 1 if None
+                    if version is not None:
+                        model_version_details = client.get_model_version(
+                            model_name, str(version))
+                    elif stage is not None:
+                        # Look up the version assigned to this stage
+                        versions = client.get_latest_versions(model_name, stages=[stage])
+                        if versions:
+                            model_version_details = versions[0]
+                        else:
+                            raise ValueError(f"No model version found for stage '{stage}'")
+                    else:
+                        # Latest version
+                        versions = client.search_model_versions(
+                            f"name='{model_name}'",
+                            order_by=["version_number DESC"],
+                            max_results=1
+                        )
+                        if versions:
+                            model_version_details = versions[0]
+                        else:
+                            raise ValueError(f"No versions found for model '{model_name}'")
                     run_id = model_version_details.run_id
 
                 if run_id:
-                    # 2. Download scaler artifact
-                    local_scaler_path = mlflow.artifacts.download_artifacts(
-                        run_id=run_id,
-                        artifact_path=f"{MODEL_ARTIFACT_PATH}/scaler.joblib"
-                    )
+                    # 2. Download scaler artifact — try canonical name first, then any .joblib
+                    scaler_loaded = False
+                    for scaler_name in ["scaler.joblib"]:
+                        try:
+                            local_scaler_path = mlflow.artifacts.download_artifacts(
+                                run_id=run_id,
+                                artifact_path=f"{MODEL_ARTIFACT_PATH}/{scaler_name}"
+                            )
+                            if os.path.exists(local_scaler_path):
+                                self.scaler = joblib.load(local_scaler_path)
+                                logger.info("Scaler loaded successfully from MLflow artifact")
+                                scaler_loaded = True
+                                break
+                        except Exception:
+                            continue
 
-                    # 3. Load scaler
-                    if os.path.exists(local_scaler_path):
-                        self.scaler = joblib.load(local_scaler_path)
-                        logger.info("Scaler loaded successfully from MLflow artifact")
-                    else:
-                        logger.warning(f"Scaler not found in MLflow artifacts at {local_scaler_path}")
+                    # Fallback: list artifacts and find any .joblib that isn't model.pkl
+                    if not scaler_loaded:
+                        try:
+                            client = mlflow.tracking.MlflowClient()
+                            arts = client.list_artifacts(run_id, MODEL_ARTIFACT_PATH)
+                            for a in arts:
+                                if a.path.endswith('.joblib') and 'model' not in a.path:
+                                    local_path = mlflow.artifacts.download_artifacts(
+                                        run_id=run_id, artifact_path=a.path
+                                    )
+                                    self.scaler = joblib.load(local_path)
+                                    logger.info(f"Scaler loaded from MLflow artifact: {a.path}")
+                                    scaler_loaded = True
+                                    break
+                        except Exception as fallback_e:
+                            logger.warning(f"Fallback scaler search failed: {fallback_e}")
+
+                    if not scaler_loaded:
+                        logger.warning("Scaler not found in MLflow artifacts")
                 else:
                     logger.warning("Could not determine Run ID to load scaler")
 
