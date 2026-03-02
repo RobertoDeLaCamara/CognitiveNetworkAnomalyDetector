@@ -39,8 +39,8 @@ def plot_anomaly_timeline(df: pd.DataFrame, show_threshold: bool = True) -> go.F
         )
         return fig
 
-    # Filter only ML anomalies (they have scores)
-    ml_df = df[df['alert_type'] == 'ML'].copy()
+    # Filter ML-based anomalies (they have scores)
+    ml_df = df[df['alert_type'].str.startswith('ML')].copy()
 
     if ml_df.empty:
         fig = go.Figure()
@@ -116,7 +116,7 @@ def plot_score_distribution(df: pd.DataFrame) -> go.Figure:
     Returns:
         Plotly figure
     """
-    ml_df = df[df['alert_type'] == 'ML']
+    ml_df = df[df['alert_type'].str.startswith('ML')]
 
     if ml_df.empty:
         fig = go.Figure()

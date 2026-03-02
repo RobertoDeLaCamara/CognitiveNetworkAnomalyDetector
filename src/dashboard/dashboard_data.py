@@ -211,7 +211,7 @@ class AnomalyDataLoader:
         # Optimization: Create a specific DB query for this later if needed
         # For now, just query ML entries to calc stats
         ml_df = self.load_anomalies(max_records=1000)  # Only recent ones for speed? Or all?
-        ml_df = ml_df[ml_df['alert_type'] == 'ML']
+        ml_df = ml_df[ml_df['alert_type'].str.startswith('ML')]
 
         if not ml_df.empty:
             stats.update({

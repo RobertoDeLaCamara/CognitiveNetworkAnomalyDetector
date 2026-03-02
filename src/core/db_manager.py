@@ -143,11 +143,11 @@ class DBManager:
 
                 # ML vs Rule
                 stats['ml_anomalies'] = conn.execute(
-                    "SELECT COUNT(*) FROM anomalies WHERE alert_type = 'ML'"
+                    "SELECT COUNT(*) FROM anomalies WHERE alert_type LIKE 'ML%'"
                 ).fetchone()[0]
 
                 stats['rule_anomalies'] = conn.execute(
-                    "SELECT COUNT(*) FROM anomalies WHERE alert_type != 'ML'"
+                    "SELECT COUNT(*) FROM anomalies WHERE alert_type NOT LIKE 'ML%'"
                 ).fetchone()[0]
 
                 # Unique IPs
