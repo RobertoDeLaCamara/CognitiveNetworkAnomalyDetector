@@ -22,7 +22,7 @@ class DBManager:
         """
         # Ensure path is absolute if not already
         if not Path(db_path).is_absolute():
-            self.db_path = str(Path(__file__).parent.parent / db_path)
+            self.db_path = str(Path(__file__).parent.parent.parent / db_path)
         else:
             self.db_path = db_path
 
