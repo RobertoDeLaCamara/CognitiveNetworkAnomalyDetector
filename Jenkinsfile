@@ -96,9 +96,10 @@ pipeline {
                     passwordVariable: 'SONAR_PASS'
                 )]) {
                     sh """
-                        HOST_WORKSPACE=\$(echo \${WORKSPACE} | sed 's|/var/jenkins_home|/home/roberto/jenkins_home|')
+                        JENKINS_CONTAINER=\$(cat /proc/self/cgroup | grep -oP '(?<=docker/)[a-f0-9]{64}' | head -1 || hostname)
                         docker run --rm \
-                            -v "\${HOST_WORKSPACE}:/usr/src" \
+                            --volumes-from \${JENKINS_CONTAINER} \
+                            -w \${WORKSPACE} \
                             sonarsource/sonar-scanner-cli \
                             -Dsonar.projectKey=cognitive-anomaly-detector \
                             -Dsonar.sources=src \
