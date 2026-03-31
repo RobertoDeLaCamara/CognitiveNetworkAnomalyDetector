@@ -96,12 +96,11 @@ pipeline {
                     passwordVariable: 'SONAR_PASS'
                 )]) {
                     sh """
-                        AGENT_ID=\$(cat /proc/self/cgroup | grep -oP '(?<=docker/)[a-f0-9]{64}' | head -1 || hostname)
-                        AGENT_VOL_HOST=\$(docker inspect \${AGENT_ID} --format '{{range .Mounts}}{{if eq .Destination "/home/jenkins/agent"}}{{.Source}}{{end}}{{end}}')
-                        SONAR_TMP=/home/jenkins/agent/sonar-tmp-\${BUILD_NUMBER}
-                        cp -r \${WORKSPACE} \${SONAR_TMP}
+                        VOL="cad-sonar-\${BUILD_NUMBER}"
+                        docker volume create "\$VOL"
+                        tar -cf - . | docker run --rm -i -v "\$VOL:/usr/src" alpine tar -xf - -C /usr/src
                         docker run --rm \
-                            -v "\${AGENT_VOL_HOST}/sonar-tmp-\${BUILD_NUMBER}:/usr/src" \
+                            -v "\$VOL:/usr/src" \
                             sonarsource/sonar-scanner-cli \
                             -Dsonar.projectKey=cognitive-anomaly-detector \
                             -Dsonar.sources=src \
@@ -109,10 +108,10 @@ pipeline {
                             -Dsonar.python.version=3.11 \
                             -Dsonar.python.coverage.reportPaths=coverage.xml \
                             -Dsonar.host.url=http://192.168.1.86:9000 \
-                            -Dsonar.login=\${SONAR_USER} \
-                            -Dsonar.password=\${SONAR_PASS} \
+                            -Dsonar.login="\${SONAR_USER}" \
+                            -Dsonar.password="\${SONAR_PASS}" \
                             -Dsonar.scm.disabled=true
-                        rm -rf \${SONAR_TMP}
+                        docker volume rm "\$VOL"
                     """
                 }
             }
@@ -131,6 +130,7 @@ pipeline {
         always {
             sh 'rm -f test-results.xml coverage.xml || true'
             sh "docker rmi ${REGISTRY}/${IMAGE_NAME}:\${BUILD_NUMBER} || true"
+            sh "docker volume rm cad-sonar-\${BUILD_NUMBER} || true"
         }
         success {
             echo 'Pipeline succeeded!'
