@@ -3,7 +3,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 
-Network anomaly detection with triple-engine ensemble: Isolation Forest (40%) + LSTM Autoencoder/PyTorch (40%) + rule-based engine (20%). Scapy packet capture, 18 per-IP feature extraction, MLflow tracking, Streamlit dashboard.
+Network anomaly detection with triple-engine ensemble: Isolation Forest (40%) + LSTM Autoencoder/PyTorch (40%) + rule-based engine (20%). Scapy packet capture, 18 per-IP feature extraction, ML Tracking tracking, Streamlit dashboard.
 
 ## Architecture
 
@@ -59,7 +59,7 @@ sudo venv/bin/python main.py
 ./run_dashboard.sh          # --> http://localhost:8501
 ```
 
-For Docker, full install options, and MLflow remote setup see [SETUP.md](docs/SETUP.md).
+For Docker, full install options, and ML Tracking remote setup see [SETUP.md](docs/SETUP.md).
 
 ## Project Structure
 
@@ -74,7 +74,7 @@ cognitive-anomaly-detector/
 │   │   └── ensemble.py         # Weighted confidence fusion
 │   ├── ml/                     # Feature extraction, model training, detectors
 │   │   ├── feature_extractor.py  # 18-feature pipeline
-│   │   ├── model_trainer.py    # IF training with MLflow tracking
+│   │   ├── model_trainer.py    # IF training with ML Tracking tracking
 │   │   └── lstm_trainer.py     # LSTM Autoencoder training
 │   ├── config/                 # Rule thresholds and ML settings
 │   └── dashboard/              # Dashboard-specific logic
@@ -89,7 +89,7 @@ cognitive-anomaly-detector/
 ├── main.py                     # Detection entry point (sudo required)
 ├── dashboard.py                # Streamlit dashboard
 ├── docker-compose.yml
-├── Jenkinsfile                 # CI pipeline
+├── CI/CDfile                 # CI pipeline
 └── requirements.txt
 ```
 
@@ -102,8 +102,8 @@ cognitive-anomaly-detector/
 | `ENSEMBLE_LSTM_WEIGHT` | LSTM Autoencoder weight | `0.4` |
 | `ENSEMBLE_RULES_WEIGHT` | Rule engine weight | `0.2` |
 | `ALERT_THRESHOLD` | Confidence threshold for alerts | `0.6` |
-| `MLFLOW_TRACKING_URI` | MLflow server URL | `None` (local) |
-| `MLFLOW_EXPERIMENT_NAME` | Experiment name | `anomaly-detection` |
+| `ML Tracking_TRACKING_URI` | ML Tracking server URL | `None` (local) |
+| `ML Tracking_EXPERIMENT_NAME` | Experiment name | `anomaly-detection` |
 | `DB_PATH` | SQLite database path | `data/alerts.db` |
 
 See [CONFIGURATION.md](docs/CONFIGURATION.md) for all options.
@@ -120,8 +120,8 @@ sudo venv/bin/python scripts/train_model.py --duration 60 --version 1
 # LSTM Autoencoder
 python scripts/train_lstm_model.py --from-file data/training/synthetic_baseline.csv
 
-# Disable MLflow for a run
-python scripts/train_model.py --from-file data.csv --no-mlflow
+# Disable ML Tracking for a run
+python scripts/train_model.py --from-file data.csv --no-ML Tracking
 ```
 
 ## Testing
@@ -133,15 +133,15 @@ pytest tests/ --cov=src --cov-report=term-missing
 
 ## CI/CD
 
-Jenkins multibranch pipeline (Gitea SCM source):
+CI/CD multibranch pipeline (Git Server SCM source):
 - **Build** Docker image
 - **Lint** + security scan
 - **Test** with coverage
-- **SonarQube** analysis
+- **Quality Analysis** analysis
 
 ## Documentation
 
-- [SETUP.md](docs/SETUP.md) -- Installation, Docker, MLflow remote setup
+- [SETUP.md](docs/SETUP.md) -- Installation, Docker, ML Tracking remote setup
 - [CONFIGURATION.md](docs/CONFIGURATION.md) -- All config options and environment variables
 - [DASHBOARD.md](docs/DASHBOARD.md) -- Streamlit dashboard guide
 - [SECURITY.md](docs/SECURITY.md) -- Security notes and hardening applied
@@ -150,4 +150,4 @@ Jenkins multibranch pipeline (Gitea SCM source):
 
 - Python 3.8+
 - Root/sudo for packet capture (`main.py`, live training)
-- Optional: remote MLflow server + MinIO for experiment tracking
+- Optional: remote ML Tracking server + S3-compatible storage for experiment tracking

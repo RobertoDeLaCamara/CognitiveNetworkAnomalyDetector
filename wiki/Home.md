@@ -36,7 +36,7 @@ docker-compose run --rm trainer --duration 60
 | Packet capture | Scapy (root required) | — |
 | Dashboard | Streamlit | 8501 |
 | Database | SQLite (`anomalies.db`) | — |
-| Model registry | MLflow + MinIO (optional) | — |
+| Model registry | ML Tracking + S3-compatible storage (optional) | — |
 
 ## Wiki Pages
 
@@ -66,7 +66,7 @@ models/                             isolation_forest_v5.joblib, lstm_autoencoder
 
 ## Non-Obvious Facts
 
-- MLflow is optional. Without it, models load from local joblib files. Set `MLFLOW_TRACKING_URI` + S3/MinIO credentials in `.env` for remote registry.
+- ML Tracking is optional. Without it, models load from local joblib files. Set `ML Tracking_TRACKING_URI` + S3/S3-compatible storage credentials in `.env` for remote registry.
 - LSTM hot reload: model file mtime checked every 60s; changed file triggers in-place reload without restart.
 - Alert cooldown: max 3 alerts per (IP, alert_type) per 60s — prevents alert flooding while ML inference continues per-packet.
 - Capture interface: set `CAPTURE_INTERFACE` env var (default: `eth0`).

@@ -45,7 +45,7 @@ Real-time overview updated on page refresh (or auto-refresh if enabled):
 - Feature names (from `ml_config.py`)
 - Training date (file mtime)
 - File size in MB
-- MLflow experiment link (if `MLFLOW_TRACKING_URI` set)
+- ML Tracking experiment link (if `ML Tracking_TRACKING_URI` set)
 
 ### 5. Traffic Insights
 

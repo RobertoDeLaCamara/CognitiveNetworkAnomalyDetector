@@ -44,9 +44,9 @@ All new code should include tests. Aim to maintain or improve coverage.
 - **Packet capture** (requires root): `sudo python main.py`
 - **Dashboard:** `python dashboard.py` (Streamlit UI)
 
-## MLflow Experiment Tracking
+## ML Tracking Experiment Tracking
 
-Experiments are tracked with MLflow. When modifying models or the feature pipeline:
+Experiments are tracked with ML Tracking. When modifying models or the feature pipeline:
 - Log parameters, metrics, and artifacts consistently
 - Use meaningful experiment and run names
 - Check `mlruns/` for existing experiment history

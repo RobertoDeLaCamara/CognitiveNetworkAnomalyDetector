@@ -38,5 +38,5 @@ python scripts/train_model.py --from-file data/training/synthetic_baseline.csv
 - [ ] `.env` not committed to version control
 - [ ] Real credentials not in any committed file
 - [ ] `models/` directory has restricted permissions (`chmod 750 models/`)
-- [ ] MLflow server uses authentication in production
+- [ ] ML Tracking server uses authentication in production
 - [ ] Log files don't expose sensitive payload content

@@ -41,12 +41,12 @@ PACKET_WORKERS=2          # Worker threads consuming the packet queue
 PACKET_QUEUE_SIZE=10000   # Max packets buffered before dropping
 ```
 
-MLflow / MinIO (see [SETUP.md](SETUP.md) for full setup):
+ML Tracking / S3-compatible storage (see [SETUP.md](SETUP.md) for full setup):
 
 ```bash
-MLFLOW_TRACKING_URI=http://<server>:5050
-MLFLOW_S3_ENDPOINT_URL=http://<server>:9000
-MLFLOW_S3_BUCKET=mlflow-artifacts
+ML Tracking_TRACKING_URI=http://<server>:5050
+ML Tracking_S3_ENDPOINT_URL=http://<server>:9000
+ML Tracking_S3_BUCKET=ML Tracking-artifacts
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 ```
@@ -80,9 +80,9 @@ python scripts/train_model.py [options]
 | `--from-file PATH` | Train from CSV file | `--from-file data/baseline.csv` |
 | `--contamination X` | Expected anomaly rate | `--contamination 0.01` |
 | `--version V` | Model version number | `--version 2` |
-| `--experiment-name NAME` | MLflow experiment name | `--experiment-name prod-v1` |
-| `--run-name NAME` | MLflow run name | `--run-name baseline` |
-| `--no-mlflow` | Disable MLflow for this run | |
+| `--experiment-name NAME` | ML Tracking experiment name | `--experiment-name prod-v1` |
+| `--run-name NAME` | ML Tracking run name | `--run-name baseline` |
+| `--no-ML Tracking` | Disable ML Tracking for this run | |
 
 ```bash
 python scripts/train_lstm_model.py [options]

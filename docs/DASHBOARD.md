@@ -34,7 +34,7 @@ docker-compose up -d dashboard
 
 - **`anomaly_detection.log`** — parsed for all ML and rule-based alerts
 - **`models/isolation_forest_v1.joblib`** — metadata for Model Info page
-- **MLflow server** — experiment data (only if `MLFLOW_TRACKING_URI` is set in `.env`)
+- **ML Tracking server** — experiment data (only if `ML Tracking_TRACKING_URI` is set in `.env`)
 
 ## Generating Test Data
 
@@ -58,5 +58,5 @@ Edit `src/config/dashboard_config.py` to adjust display limits and colors. See [
 |---|---|
 | Import errors | `pip install -r requirements.txt` |
 | No anomalies shown | Run detector first to populate the log |
-| MLflow page error | Set `MLFLOW_TRACKING_URI` in `.env` and verify server is up |
+| ML Tracking page error | Set `ML Tracking_TRACKING_URI` in `.env` and verify server is up |
 | Slow with large logs | Reduce `MAX_LOG_LINES` in `dashboard_config.py` or archive old logs |

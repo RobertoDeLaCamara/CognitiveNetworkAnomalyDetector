@@ -78,14 +78,14 @@ docker-compose down
 
 ### Notes
 - The `detector` service uses `network_mode: host` to capture host traffic.
-- Volumes `./models`, `./data`, and `./.mlflow` are mounted for persistence.
-- Copy `.env.example` to `.env` before starting if you use remote MLflow.
+- Volumes `./models`, `./data`, and `./.ML Tracking` are mounted for persistence.
+- Copy `.env.example` to `.env` before starting if you use remote ML Tracking.
 
 ---
 
-## Remote MLflow + MinIO
+## Remote ML Tracking + S3-compatible storage
 
-The project supports a remote MLflow tracking server with MinIO artifact storage. This is optional — without it, experiments are tracked locally in `.mlflow/`.
+The project supports a remote ML Tracking tracking server with S3-compatible storage artifact storage. This is optional — without it, experiments are tracked locally in `.ML Tracking/`.
 
 ### Configure
 
@@ -96,26 +96,26 @@ cp .env.example .env
 Edit `.env`:
 
 ```bash
-MLFLOW_TRACKING_URI=http://<mlflow-server>:5050
-MLFLOW_S3_ENDPOINT_URL=http://<minio-server>:9000
-MLFLOW_S3_BUCKET=mlflow-artifacts
+ML Tracking_TRACKING_URI=http://<ML Tracking-server>:5050
+ML Tracking_S3_ENDPOINT_URL=http://<S3-compatible storage-server>:9000
+ML Tracking_S3_BUCKET=ML Tracking-artifacts
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 ```
 
-> MinIO uses port **9000** for the API and **9001** for the web UI.
+> S3-compatible storage uses port **9000** for the API and **9001** for the web UI.
 
-### Get MinIO credentials
-1. Open MinIO UI: `http://<minio-server>:9001`
+### Get S3-compatible storage credentials
+1. Open S3-compatible storage UI: `http://<S3-compatible storage-server>:9001`
 2. Go to **Access Keys** → create or copy an existing key
 
 ### Test the connection
 
 ```bash
-python scripts/test_mlflow_connection.py
+python scripts/test_ML Tracking_connection.py
 # Expected:
-# ✅ MLflow Server:  PASS
-# ✅ MinIO Storage:  PASS
+# ✅ ML Tracking Server:  PASS
+# ✅ S3-compatible storage Storage:  PASS
 # ✅ End-to-End:     PASS
 ```
 
@@ -126,10 +126,10 @@ python scripts/test_mlflow_connection.py
 python scripts/train_model.py --duration 60 --version 1
 
 # Force local for a single run
-MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --no-mlflow
+ML Tracking_TRACKING_URI="" python scripts/train_model.py --duration 60 --no-ML Tracking
 
 # View local experiments
-mlflow ui --backend-store-uri file://$(pwd)/.mlflow/mlruns
+ML Tracking ui --backend-store-uri file://$(pwd)/.ML Tracking/mlruns
 # → http://localhost:5000
 ```
 
@@ -137,7 +137,7 @@ mlflow ui --backend-store-uri file://$(pwd)/.mlflow/mlruns
 
 | Error | Fix |
 |---|---|
-| Cannot connect to MLflow | Check server is up: `curl http://<server>:5050` |
-| Cannot connect to MinIO | Use port 9000, not 9001 |
-| Bucket not found | Create `mlflow-artifacts` bucket in MinIO UI, or MLflow will create it on first use |
-| Credentials error | Verify `.env` has no typos; re-run `test_mlflow_connection.py` |
+| Cannot connect to ML Tracking | Check server is up: `curl http://<server>:5050` |
+| Cannot connect to S3-compatible storage | Use port 9000, not 9001 |
+| Bucket not found | Create `ML Tracking-artifacts` bucket in S3-compatible storage UI, or ML Tracking will create it on first use |
+| Credentials error | Verify `.env` has no typos; re-run `test_ML Tracking_connection.py` |

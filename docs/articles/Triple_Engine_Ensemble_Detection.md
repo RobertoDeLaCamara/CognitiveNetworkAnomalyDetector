@@ -108,7 +108,7 @@ normalized_score = (0.5 - decision_score).clip(0, 1)
 
 A `decision_score` of `0.5` (deep inside normal territory) maps to `0.0`. A `decision_score` of `-0.5` (clear outlier) maps to `1.0`. The clipping handles the small fraction of cases where scores fall outside the typical range.
 
-The model uses a fallback loading chain: MLflow registry → local joblib file → rules-only mode. In production without MLflow, the local file path is `models/isolation_forest_v{MODEL_VERSION}.joblib`.
+The model uses a fallback loading chain: ML Tracking registry → local joblib file → rules-only mode. In production without ML Tracking, the local file path is `models/isolation_forest_v{MODEL_VERSION}.joblib`.
 
 ### LSTM Autoencoder: Temporal Pattern Reconstruction
 

@@ -61,7 +61,7 @@ normalized     = (0.5 - decision_score).clip(0, 1)  # → [0,1], higher = more a
 **Score normalization**: `(0.5 - d)` maps: d=0.5 (normal) → 0.0; d=−0.5 (anomalous) → 1.0.
 
 **Loading fallback chain**:
-1. MLflow registry (if `MLFLOW_ENABLE_REMOTE_LOADING=true`)
+1. ML Tracking registry (if `ML Tracking_ENABLE_REMOTE_LOADING=true`)
 2. Local joblib file (`models/isolation_forest_v{MODEL_VERSION}.joblib`)
 3. ML detection disabled (rules-only fallback)
 
@@ -169,9 +169,9 @@ python scripts/train_lstm_model.py \
 # Output: models/lstm_autoencoder.pt, models/lstm_config.json
 ```
 
-With MLflow enabled:
+With ML Tracking enabled:
 ```bash
-export MLFLOW_TRACKING_URI=http://localhost:5000
+export ML Tracking_TRACKING_URI=http://localhost:5000
 export AWS_ACCESS_KEY_ID=...
 export AWS_SECRET_ACCESS_KEY=...
 python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1

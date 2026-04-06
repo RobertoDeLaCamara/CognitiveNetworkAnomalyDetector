@@ -5,7 +5,7 @@
 - Python 3.10+
 - PyTorch 2.0+ (CPU)
 - Root / sudo for live packet capture
-- MLflow + MinIO (optional, for remote model registry)
+- ML Tracking + S3-compatible storage (optional, for remote model registry)
 
 ## Local Setup
 
@@ -15,7 +15,7 @@ cd cognitive-anomaly-detector
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Set CAPTURE_INTERFACE, MLFLOW_TRACKING_URI, etc. in .env
+# Set CAPTURE_INTERFACE, ML Tracking_TRACKING_URI, etc. in .env
 ```
 
 ## Training Workflow
@@ -102,8 +102,8 @@ pytest tests/ --lf
 | `THRESHOLD_MULTIPLIER` | 2.0 | Traffic spike multiplier |
 | `ICMP_THRESHOLD` | 50 | ICMP flood count |
 | `MODEL_VERSION` | 5 | Active model version number |
-| `MLFLOW_TRACKING_URI` | (empty) | Enable remote registry |
-| `MLFLOW_ENABLE_REMOTE_LOADING` | false | Load model from MLflow |
+| `ML Tracking_TRACKING_URI` | (empty) | Enable remote registry |
+| `ML Tracking_ENABLE_REMOTE_LOADING` | false | Load model from ML Tracking |
 | `LSTM_SEQUENCE_LENGTH` | 50 | LSTM buffer length |
 | `LSTM_EPOCHS` | 50 | Training epochs |
 
@@ -129,11 +129,11 @@ src/
 └── config/
     ├── config.py              Detection thresholds
     ├── ml_config.py           Feature/model settings
-    ├── mlflow_config.py       MLflow tracking
+    ├── ML Tracking_config.py       ML Tracking tracking
     ├── security_config.py     Input validation limits
     └── dashboard_config.py    Streamlit settings
 ```
 
-## CI/CD (Jenkins)
+## CI/CD (CI/CD)
 
 Stages: Setup → Run Tests → Stop (no Docker push for this project). Virtual environment managed per-build; PID-based process management for mock services during integration tests.
