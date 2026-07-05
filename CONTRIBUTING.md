@@ -18,8 +18,8 @@ Thank you for your interest in contributing! This guide will help you get starte
    ```
 4. Generate baseline data and train the model:
    ```bash
-   python generate_synthetic_data.py
-   python train_model.py --from-file data/training/synthetic_baseline.csv
+   python scripts/generate_synthetic_data.py
+   python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
    ```
 
 ## Development Workflow
