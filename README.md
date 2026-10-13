@@ -1,6 +1,6 @@
 # Cognitive Anomaly Detector
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 
 Network anomaly detection with triple-engine ensemble: Isolation Forest (40%) + LSTM Autoencoder/PyTorch (40%) + rule-based engine (20%). Scapy packet capture, 18 per-IP feature extraction, ML Tracking tracking, Streamlit dashboard.
@@ -148,6 +148,6 @@ CI/CD multibranch pipeline (Git Server SCM source):
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.9+
 - Root/sudo for packet capture (`main.py`, live training)
 - Optional: remote ML Tracking server + S3-compatible storage for experiment tracking

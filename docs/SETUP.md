@@ -3,7 +3,7 @@
 ## Local Install
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.9+
 - `libpcap` (for packet capture): `sudo apt install libpcap-dev` / `brew install libpcap`
 - Root/sudo access for live traffic capture
 
