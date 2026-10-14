@@ -13,23 +13,27 @@ from pathlib import Path
 # ========== MLflow Tracking Configuration ==========
 
 # Remote MLflow tracking server (set via environment variable)
-# Default: local file store
+# Default: local SQLite database (MLflow 3.x rejects the file store)
 # Remote example: 'http://<MLFLOW_SERVER_IP>:5050'
 REMOTE_MLFLOW_SERVER = os.getenv('MLFLOW_TRACKING_URI')
 
 # Base directory for local MLflow data (used when no remote server)
 MLFLOW_DIR = Path('.mlflow')
 
+# Local SQLite tracking store (absolute path -> sqlite:////abs/path form)
+DEFAULT_LOCAL_TRACKING_URI = (
+    f'sqlite:///{(Path.cwd() / MLFLOW_DIR / "mlflow.db").as_posix()}'
+)
+
 # Determine if using remote or local tracking
 if REMOTE_MLFLOW_SERVER:
     MLFLOW_TRACKING_URI = REMOTE_MLFLOW_SERVER
     IS_REMOTE_TRACKING = True
 else:
-    MLFLOW_TRACKING_URI = f'file://{Path.cwd() / MLFLOW_DIR / "mlruns"}'
+    MLFLOW_TRACKING_URI = DEFAULT_LOCAL_TRACKING_URI
     IS_REMOTE_TRACKING = False
     # Create local directories only if not using remote
     MLFLOW_DIR.mkdir(exist_ok=True)
-    (MLFLOW_DIR / 'mlruns').mkdir(exist_ok=True)
     (MLFLOW_DIR / 'artifacts').mkdir(exist_ok=True)
 
 # Enable/disable MLflow tracking globally
@@ -114,12 +118,13 @@ DEFAULT_TAGS = {
 def get_tracking_uri() -> str:
     """Get the MLflow tracking URI.
 
-    Prioritizes environment variable over configuration.
+    A non-empty MLFLOW_TRACKING_URI environment variable takes precedence;
+    an empty or unset one falls back to the configured (local SQLite) default.
 
     Returns:
         MLflow tracking URI string
     """
-    return os.getenv('MLFLOW_TRACKING_URI', MLFLOW_TRACKING_URI)
+    return os.getenv('MLFLOW_TRACKING_URI') or MLFLOW_TRACKING_URI
 
 
 def is_remote_tracking() -> bool:
