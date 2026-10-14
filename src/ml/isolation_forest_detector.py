@@ -657,7 +657,8 @@ class IsolationForestDetector:
                 mlflow.sklearn.log_model(
                     self.model,
                     MODEL_ARTIFACT_PATH,
-                    registered_model_name=REGISTERED_MODEL_NAME if register_model else None
+                    registered_model_name=REGISTERED_MODEL_NAME if register_model else None,
+                    skops_trusted_types=['sklearn.tree._tree.Tree']
                 )
 
                 logger.info(f"Model saved to MLflow run: {run.info.run_id}")
