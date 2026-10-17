@@ -105,38 +105,32 @@ class TestPayloadEdgeCases:
     
     def test_command_injection_patterns(self):
         """Test command injection detection."""
-        # Test patterns we know exist in config
+        # Only the configured patterns are detected: bare shell operators are not.
         cmd_payloads = [
-            (b"/bin/bash -c 'ls'", True),  # Should detect /bin/bash -c
-            (b"; ls -la", None),  # May or may not be detected
-            (b"| cat /etc/passwd", None),
+            (b"/bin/bash -c 'ls'", True),
+            (b"; ls -la", False),
+            (b"| cat /etc/passwd", False),
         ]
-        
+
         for payload, expected in cmd_payloads:
-            is_malicious, pattern = detect_malicious_payload(payload)
-            if expected is True:
-                assert is_malicious is True
-            # For others, just check no crash
-            assert isinstance(is_malicious, bool)
+            is_malicious, _ = detect_malicious_payload(payload)
+            assert is_malicious is expected, payload
     
     def test_path_traversal_variations(self):
         """Test path traversal detection."""
         traversal_payloads = [
-            b"../../../../etc/passwd",
-            b"..\\..\\..\\windows\\system32",
-            b"....//....//etc/hosts"
+            (b"../../../../etc/passwd", True),
+            (b"..\\..\\..\\windows\\system32", True),
+            (b"....//....//etc/hosts", False),  # no configured pattern matches this form
         ]
-        
-        for payload in traversal_payloads:
-            is_malicious, pattern = detect_malicious_payload(payload)
-            # At least the first should be detected
-            if b"../../../" in payload:
-                assert is_malicious is True
+
+        for payload, expected in traversal_payloads:
+            is_malicious, _ = detect_malicious_payload(payload)
+            assert is_malicious is expected, payload
     
     def test_null_byte_injection(self):
         """Test null byte injection."""
         null_byte_payload = b"file.txt\x00.php"
-        is_malicious, pattern = detect_malicious_payload(null_byte_payload)
-        # Should handle gracefully
-        assert isinstance(is_malicious, bool)
+        # A null byte alone matches no pattern; it must be handled without error.
+        assert detect_malicious_payload(null_byte_payload) == (False, None)
 
