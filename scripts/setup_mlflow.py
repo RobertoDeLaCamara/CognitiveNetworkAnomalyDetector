@@ -8,7 +8,6 @@ This script:
 4. Displays helpful information
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -20,6 +19,7 @@ try:
     import mlflow
     from src.config.mlflow_config import (
         MLFLOW_DIR,
+        DEFAULT_LOCAL_TRACKING_URI,
         get_tracking_uri,
         DEFAULT_EXPERIMENT_NAME,
         REGISTERED_MODEL_NAME
@@ -40,20 +40,18 @@ def setup_mlflow():
     # Create directories with secure permissions
     print("\n1. Creating MLflow directories...")
     MLFLOW_DIR.mkdir(mode=0o750, exist_ok=True)
-    (MLFLOW_DIR / 'mlruns').mkdir(mode=0o750, exist_ok=True)
     (MLFLOW_DIR / 'artifacts').mkdir(mode=0o750, exist_ok=True)
     print(f"   ✓ Created {MLFLOW_DIR}")
-    print(f"   ✓ Created {MLFLOW_DIR / 'mlruns'}")
     print(f"   ✓ Created {MLFLOW_DIR / 'artifacts'}")
     
     # Set tracking URI
     tracking_uri = get_tracking_uri()
     mlflow.set_tracking_uri(tracking_uri)
-    print(f"\n2. MLflow tracking URI set to:")
+    print("\n2. MLflow tracking URI set to:")
     print(f"   {tracking_uri}")
     
     # Create default experiment
-    print(f"\n3. Setting up default experiment...")
+    print("\n3. Setting up default experiment...")
     try:
         experiment = mlflow.get_experiment_by_name(DEFAULT_EXPERIMENT_NAME)
         if experiment is None:
@@ -86,7 +84,7 @@ def setup_mlflow():
     print("   python train_model.py --duration 60 --version 1")
     
     print("\n2. View experiments in MLflow UI:")
-    print(f"   mlflow ui --backend-store-uri file://{Path.cwd() / MLFLOW_DIR / 'mlruns'}")
+    print(f"   mlflow ui --backend-store-uri {DEFAULT_LOCAL_TRACKING_URI}")
     print("   Then open: http://localhost:5000")
     
     print("\n3. Train with custom experiment name:")

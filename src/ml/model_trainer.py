@@ -337,11 +337,16 @@ class ModelTrainer:
                 mlflow.sklearn.log_model(
                     self.detector.model,
                     MODEL_ARTIFACT_PATH,
-                    signature=signature
+                    signature=signature,
+                    skops_trusted_types=['sklearn.tree._tree.Tree']
                 )
             except Exception as e:
                 logger.warning(f"Could not log model signature: {e}")
-                mlflow.sklearn.log_model(self.detector.model, MODEL_ARTIFACT_PATH)
+                mlflow.sklearn.log_model(
+                    self.detector.model,
+                    MODEL_ARTIFACT_PATH,
+                    skops_trusted_types=['sklearn.tree._tree.Tree']
+                )
 
             # Log scaler as artifact
             try:

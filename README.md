@@ -102,11 +102,26 @@ cognitive-anomaly-detector/
 | `ENSEMBLE_LSTM_WEIGHT` | LSTM Autoencoder weight | `0.4` |
 | `ENSEMBLE_RULES_WEIGHT` | Rule engine weight | `0.2` |
 | `ALERT_THRESHOLD` | Confidence threshold for alerts | `0.6` |
-| `ML Tracking_TRACKING_URI` | ML Tracking server URL | `None` (local) |
+| `MLFLOW_TRACKING_URI` | MLflow tracking URI | `sqlite:///.mlflow/mlflow.db` (local; absolute path at runtime) |
 | `ML Tracking_EXPERIMENT_NAME` | Experiment name | `anomaly-detection` |
 | `DB_PATH` | SQLite database path | `data/alerts.db` |
 
 See [CONFIGURATION.md](docs/CONFIGURATION.md) for all options.
+
+### Experiment tracking backend
+
+MLflow 3.x rejects the file-store backend, so local tracking uses SQLite
+(`sqlite:///.mlflow/mlflow.db`). A non-empty `MLFLOW_TRACKING_URI` overrides
+this default (for example a remote `http://` server); an empty value falls
+back to SQLite.
+
+To keep history from an existing `.mlflow/mlruns` file store, migrate it once:
+
+```bash
+mlflow migrate-filestore --source .mlflow --target sqlite:///.mlflow/mlflow.db
+```
+
+The old `mlruns/` data is not deleted.
 
 ## Training Options
 

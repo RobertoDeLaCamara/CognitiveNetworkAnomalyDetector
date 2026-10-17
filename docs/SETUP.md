@@ -85,7 +85,7 @@ docker-compose down
 
 ## Remote ML Tracking + S3-compatible storage
 
-The project supports a remote ML Tracking tracking server with S3-compatible storage artifact storage. This is optional — without it, experiments are tracked locally in `.ML Tracking/`.
+The project supports a remote ML Tracking tracking server with S3-compatible storage artifact storage. This is optional — without it, experiments are tracked locally in `.mlflow/mlflow.db` (SQLite).
 
 ### Configure
 
@@ -126,12 +126,22 @@ python scripts/test_ML Tracking_connection.py
 python scripts/train_model.py --duration 60 --version 1
 
 # Force local for a single run
-ML Tracking_TRACKING_URI="" python scripts/train_model.py --duration 60 --no-ML Tracking
+MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --no-mlflow
 
 # View local experiments
-ML Tracking ui --backend-store-uri file://$(pwd)/.ML Tracking/mlruns
+mlflow ui --backend-store-uri sqlite:///$(pwd)/.mlflow/mlflow.db
 # → http://localhost:5000
 ```
+
+A non-empty `MLFLOW_TRACKING_URI` always takes precedence over the local SQLite default.
+
+To import history from an existing file-store directory (`.mlflow/mlruns`) into the SQLite database:
+
+```bash
+mlflow migrate-filestore --source .mlflow --target sqlite:///$(pwd)/.mlflow/mlflow.db
+```
+
+The original `mlruns/` data is left untouched.
 
 ### Troubleshooting
 
