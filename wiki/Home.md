@@ -40,11 +40,15 @@ docker-compose run --rm trainer --duration 60   # NOTE: trainer entrypoint point
 
 ## Wiki Pages
 
-1. [Architecture and Data Flow](Architecture-and-Data-Flow.md)
-2. [ML Pipeline](ML-Pipeline.md)
-3. [Dashboard](Dashboard.md)
-4. [Security Hardening](Security-Hardening.md)
-5. [Development Guide](Development-Guide.md)
+1. [Installation](Installation.md)
+2. [Configuration](Configuration.md)
+3. [Architecture and Data Flow](Architecture-and-Data-Flow.md)
+4. [ML Pipeline](ML-Pipeline.md)
+5. [MLflow and Model Tracking](MLflow-and-Model-Tracking.md)
+6. [Dashboard](Dashboard.md)
+7. [Security Hardening](Security-Hardening.md)
+8. [Development Guide](Development-Guide.md)
+9. [Adding a Rule or Feature](Adding-a-Rule-or-Feature.md)
 
 ## Key Layout
 
