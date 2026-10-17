@@ -112,7 +112,7 @@ Two daemon worker threads by default. Increase `PACKET_WORKERS` for high-through
 
 | Service | Role | Notes |
 |---------|------|-------|
-| trainer | One-off training job | `--duration N` or `--from-file`; runs as root with host network; entrypoint is `train_model.py` (the script lives in `scripts/`) |
+| trainer | One-off training job | `--duration N` or `--from-file`; runs as root with host network; entrypoint is `scripts/train_model.py` |
 | detector | Long-running detection | `restart: unless-stopped`, host network, privileged; sets `MLFLOW_MODEL_STAGE=Production`, `MLFLOW_MODEL_VERSION=4` |
 | dashboard | Streamlit :8501 | Reads anomalies.db (alerts) and the log file (Live Logs page) |
 

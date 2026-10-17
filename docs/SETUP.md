@@ -81,7 +81,6 @@ docker-compose down
 - The `detector` service uses `network_mode: host` to capture host traffic.
 - The whole project directory is bind-mounted (`.:/app`), so `models/`, `data/`, `.mlflow/` and `anomalies.db` persist on the host.
 - `docker-compose.yml` loads `.env` (`env_file`): copy `.env.example` to `.env` before starting, even if you do not use remote MLflow.
-- Known issue: the `trainer` and `detector` services use entrypoints `train_model.py` / `main.py` relative to `/app`, but `train_model.py` lives in `scripts/`, so `docker-compose run --rm trainer ...` fails until the entrypoint is fixed.
 
 ---
 
