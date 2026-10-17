@@ -50,6 +50,8 @@ See [MLflow and Model Tracking](MLflow-and-Model-Tracking.md): `MLFLOW_TRACKING_
 sudo venv/bin/python main.py [--duration N] [--interface IFACE]
 ```
 
+Offline mode (no root, no live capture): `--pcap FILE` replays a capture, `--replay-speed fast|original` controls timing (`original` keeps the capture's gaps, each capped at 5 s), and `--dry-run` runs the pipeline on `--pcap` or a built-in sample, writing alerts to a temporary database instead of `anomalies.db`. These cannot be combined with `--interface`.
+
 `--duration` is the length in seconds of each capture window (1-3600, default `MONITORING_INTERVAL`). After each window a summary is printed and capture restarts; the process runs until Ctrl+C or SIGTERM. `--interface` defaults to Scapy's default interface.
 
 ```bash

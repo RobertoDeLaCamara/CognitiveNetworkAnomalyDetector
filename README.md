@@ -65,6 +65,19 @@ sudo venv/bin/python main.py
 > where `MODEL_VERSION = 5` in `src/config/ml_config.py`. Train with `--version 5` (or change `MODEL_VERSION`)
 > so the detector picks the model up; otherwise ML detection is disabled and only rules run.
 
+### Offline analysis (no root)
+
+Replay a capture instead of sniffing live traffic, or try the whole pipeline without any capture:
+
+```bash
+python main.py --dry-run                                   # built-in sample traffic, alerts go to a temporary DB
+python main.py --pcap capture.pcap                         # replay as fast as possible
+python main.py --pcap capture.pcap --replay-speed original # keep the capture's timing (gaps capped at 5 s)
+python main.py --dry-run --pcap capture.pcap               # analyse a file without writing to anomalies.db
+```
+
+`--pcap` streams the file (constant memory) through the same pipeline as live mode, so alerts and the traffic summary have the same format, and alerts are stored in `anomalies.db` unless `--dry-run` is also given. `--interface` cannot be combined with `--pcap` or `--dry-run`.
+
 For Docker, full install options, and remote MLflow setup see [SETUP.md](docs/SETUP.md).
 
 ## Project Structure
@@ -96,7 +109,7 @@ cognitive-anomaly-detector/
 ├── tests/                      # Organized by component (core, detection, ml) + test_integration.py
 ├── models/                     # Trained model files (.joblib, .pt)
 ├── data/                       # Training data
-├── main.py                     # Detection entry point (sudo required)
+├── main.py                     # Detection entry point (sudo for live capture; --pcap/--dry-run need none)
 ├── dashboard.py                # Streamlit dashboard
 ├── run_dashboard.sh            # Dashboard launcher
 ├── docker-compose.yml

@@ -33,6 +33,8 @@ sudo venv/bin/python main.py
 
 **Use `--version 5`.** The detector loads `models/isolation_forest_v{MODEL_VERSION}.joblib` and the matching scaler, and `MODEL_VERSION` is `5` in `src/config/ml_config.py`. A model trained with another version is never picked up and ML detection stays disabled (rule-based detection keeps working).
 
+To try the pipeline without root or live traffic: `python main.py --dry-run` (built-in sample) or `python main.py --pcap capture.pcap`.
+
 The LSTM autoencoder is trained separately with `python scripts/train_lstm_model.py --from-file ...`. See [Configuration](Configuration.md) for every option.
 
 ## Docker
