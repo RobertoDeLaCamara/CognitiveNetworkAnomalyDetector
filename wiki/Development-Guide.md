@@ -106,7 +106,7 @@ pytest tests/ --lf
 | `LSTM_SEQUENCE_LENGTH` | 50 | LSTM buffer length |
 | `LSTM_EPOCHS` | 50 | Training epochs |
 
-`MIN_PACKETS_FOR_ML` (10) and `MODEL_VERSION` (5) are constants in `src/config/ml_config.py`, not environment variables. See [docs/CONFIGURATION.md](../docs/CONFIGURATION.md) for the full list.
+`MIN_PACKETS_FOR_ML` (10) and `MODEL_VERSION` (5) are constants in `src/config/ml_config.py`, not environment variables. See [docs/CONFIGURATION.md](https://github.com/RobertoDeLaCamara/CognitiveNetworkAnomalyDetector/blob/master/docs/CONFIGURATION.md) for the full list.
 
 ## Project Structure
 
