@@ -23,7 +23,7 @@ pip install -r requirements.txt
 ```bash
 # Generate synthetic baseline data and train
 python scripts/generate_synthetic_data.py
-python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
 
 # Start detection (requires root for packet capture)
 sudo venv/bin/python main.py
@@ -70,8 +70,8 @@ docker-compose up -d detector
 docker-compose logs -f detector
 
 # One-off training job
-docker-compose run --rm trainer --from-file data/training/synthetic_baseline.csv --version 1
-docker-compose run --rm trainer --duration 60 --version 1
+docker-compose run --rm trainer --from-file data/training/synthetic_baseline.csv --version 5
+docker-compose run --rm trainer --duration 60 --version 5
 
 # Stop everything
 docker-compose down
@@ -122,10 +122,10 @@ The script tests the MLflow server, MinIO storage and an end-to-end run, and pri
 
 ```bash
 # Remote (default when .env is configured)
-python scripts/train_model.py --duration 60 --version 1
+python scripts/train_model.py --duration 60 --version 5
 
 # Force local for a single run
-MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --version 1
+MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --version 5
 
 # View local experiments
 mlflow ui --backend-store-uri sqlite:///$(pwd)/.mlflow/mlflow.db

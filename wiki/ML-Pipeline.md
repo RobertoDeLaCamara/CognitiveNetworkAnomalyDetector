@@ -166,7 +166,7 @@ python scripts/generate_synthetic_data.py
 # Step 2: Train Isolation Forest
 python scripts/train_model.py \
   --from-file data/training/synthetic_baseline.csv \
-  --version 1
+  --version 5
 # Output: models/isolation_forest_v1.joblib, models/scaler_v1.joblib
 
 # Step 3: Train LSTM Autoencoder
@@ -180,7 +180,7 @@ With a remote MLflow server (without it, runs go to the local SQLite store `.mlf
 export MLFLOW_TRACKING_URI=http://localhost:5000
 export AWS_ACCESS_KEY_ID=...
 export AWS_SECRET_ACCESS_KEY=...
-python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
 ```
 
 ---

@@ -51,7 +51,7 @@ pip install -r requirements.txt
 python scripts/generate_synthetic_data.py
 
 # 3. Train models
-python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
 python scripts/train_lstm_model.py --from-file data/training/synthetic_baseline.csv
 
 # 4. Run detection (requires root for packet capture)
@@ -139,10 +139,10 @@ The old `mlruns/` data is not deleted.
 
 ```bash
 # From synthetic data (fast, no sudo)
-python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
 
 # From live traffic
-sudo venv/bin/python scripts/train_model.py --duration 60 --version 1
+sudo venv/bin/python scripts/train_model.py --duration 60 --version 5
 
 # LSTM Autoencoder
 python scripts/train_lstm_model.py --from-file data/training/synthetic_baseline.csv

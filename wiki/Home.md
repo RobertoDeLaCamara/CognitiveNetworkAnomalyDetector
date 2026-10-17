@@ -13,7 +13,7 @@ cp .env.example .env
 python scripts/generate_synthetic_data.py
 
 # Train Isolation Forest
-python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
 
 # Train LSTM Autoencoder
 python scripts/train_lstm_model.py --from-file data/training/synthetic_baseline.csv

@@ -28,7 +28,7 @@ python scripts/generate_synthetic_data.py
 # 2. Train Isolation Forest (required)
 python scripts/train_model.py \
   --from-file data/training/synthetic_baseline.csv \
-  --version 1
+  --version 5
 # Creates: models/isolation_forest_v1.joblib, models/scaler_v1.joblib
 
 # 3. Train LSTM Autoencoder (optional but recommended)
