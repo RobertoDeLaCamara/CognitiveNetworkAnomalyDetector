@@ -7,7 +7,6 @@ anomaly detection monitoring.
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -574,7 +573,7 @@ elif page == "📑 Reports":
 # LIVE LOGS PAGE
 # ============================================================================
 elif page == "📝 Live Logs":
-    st.title(f"📝 System Logs")
+    st.title("📝 System Logs")
     
     # Controls
     col1, col2 = st.columns([3, 1])

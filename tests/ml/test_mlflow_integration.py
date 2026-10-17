@@ -9,7 +9,6 @@ import numpy as np
 import tempfile
 import os
 import shutil
-from pathlib import Path
 
 import sys
 sys.path.insert(0, 'src')
@@ -199,7 +198,6 @@ class TestMLflowModelRegistry:
     
     def test_model_registration(self, temp_mlflow_dir, synthetic_training_data):
         """Test that models can be registered to MLflow."""
-        import mlflow
         
         features, ips = synthetic_training_data
         
@@ -208,7 +206,7 @@ class TestMLflowModelRegistry:
         trainer.training_ips = ips
         
         # Train and save model (which should register it)
-        stats = trainer.train_model()
+        trainer.train_model()
         trainer.save_model(version=1, register_model=True)
         
         # Note: Model registration in save_model requires active run

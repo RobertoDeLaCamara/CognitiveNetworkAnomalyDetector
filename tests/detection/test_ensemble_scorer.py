@@ -1,7 +1,5 @@
 """Tests for the ensemble scoring module."""
 
-import os
-import pytest
 from src.detection.ensemble_scorer import EnsembleScorer, EngineResult, EnsembleResult
 
 

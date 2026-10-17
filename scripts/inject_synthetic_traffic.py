@@ -9,7 +9,6 @@ import time
 import random
 import subprocess
 import sys
-import sys
 from datetime import datetime
 from scapy.all import IP, ICMP, send
 
@@ -33,7 +32,7 @@ def generate_icmp_flood():
                 stderr=subprocess.DEVNULL,
                 timeout=2
             )
-        except:
+        except Exception:
             pass
     
     print_status("✓ ICMP flood complete")
@@ -55,7 +54,7 @@ def generate_port_scan():
                 stderr=subprocess.DEVNULL,
                 timeout=2
             )
-        except:
+        except Exception:
             pass
         time.sleep(0.2)
     
@@ -83,7 +82,7 @@ def generate_high_bandwidth():
                 stderr=subprocess.DEVNULL,
                 timeout=3
             )
-        except:
+        except Exception:
             pass
         time.sleep(0.1)
     
@@ -111,7 +110,7 @@ def generate_dns_queries():
                 stderr=subprocess.DEVNULL,
                 timeout=2
             )
-        except:
+        except Exception:
             pass
         time.sleep(0.1)
     
@@ -134,7 +133,7 @@ def generate_mixed_traffic():
     for _ in range(15):
         try:
             random.choice(actions)()
-        except:
+        except Exception:
             pass
         time.sleep(random.uniform(0.1, 0.5))
     

@@ -63,7 +63,7 @@ def validate_args(args):
         # Check file size (max 100MB)
         max_size = 100 * 1024 * 1024
         if file_path.stat().st_size > max_size:
-            raise ValueError(f"Training file too large (max 100MB)")
+            raise ValueError("Training file too large (max 100MB)")
     
     if not (0.001 <= args.contamination <= 0.5):
         raise ValueError("Contamination must be between 0.001 and 0.5")

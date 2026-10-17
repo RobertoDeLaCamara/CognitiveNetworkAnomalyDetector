@@ -1,10 +1,7 @@
 """Tests for mlflow_config module."""
 
 import os
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import patch
 
 from src.config.mlflow_config import (
     get_tracking_uri,

@@ -8,7 +8,6 @@ This script validates:
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add src to path securely
@@ -62,7 +61,7 @@ def test_mlflow_server():
         
         # Try to list experiments
         experiments = client.search_experiments()
-        print(f"✅ Connected successfully!")
+        print("✅ Connected successfully!")
         print(f"   Found {len(experiments)} experiments")
         
         return True
@@ -104,7 +103,7 @@ def test_minio_connection():
         response = s3_client.list_buckets()
         buckets = [b['Name'] for b in response['Buckets']]
         
-        print(f"✅ Connected successfully!")
+        print("✅ Connected successfully!")
         print(f"   Available buckets: {', '.join(buckets)}")
         
         # Check if our bucket exists
@@ -112,7 +111,7 @@ def test_minio_connection():
             print(f"   ✅ Bucket '{S3_BUCKET_NAME}' exists")
         else:
             print(f"   ⚠️  Bucket '{S3_BUCKET_NAME}' not found")
-            print(f"       Create it in MinIO UI or it will be created automatically")
+            print("       Create it in MinIO UI or it will be created automatically")
         
         return True
         
@@ -162,12 +161,12 @@ def test_end_to_end():
             finally:
                 Path(temp_file).unlink()  # Clean up
             
-            print(f"✅ Test run created successfully!")
+            print("✅ Test run created successfully!")
             print(f"   Run ID: {run.info.run_id}")
             print(f"   Experiment ID: {run.info.experiment_id}")
             
             if is_remote_tracking():
-                print(f"\n   View in MLflow UI:")
+                print("\n   View in MLflow UI:")
                 print(f"   {get_tracking_uri()}")
         
         return True

@@ -1,7 +1,6 @@
 import os
 import sys
 from pathlib import Path
-import mlflow
 from mlflow.tracking import MlflowClient
 from dotenv import load_dotenv
 

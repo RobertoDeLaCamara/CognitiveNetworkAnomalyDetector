@@ -2,7 +2,6 @@
 
 import threading
 import time
-import pytest
 from src.core.packet_queue import PacketProcessor
 
 
