@@ -2,10 +2,9 @@
 
 import os
 import stat
-import tempfile
 import logging
 from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch
 import pytest
 
 from src.core.logger_setup import (
@@ -65,7 +64,6 @@ class TestSecureLogFile:
         
         # Check permissions (owner read/write, group read)
         file_stat = os.stat(log_file)
-        permissions = stat.filemode(file_stat.st_mode)
         # Should be -rw-r----- or similar
         assert file_stat.st_mode & stat.S_IRUSR
         assert file_stat.st_mode & stat.S_IWUSR

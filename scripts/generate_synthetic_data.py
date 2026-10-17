@@ -11,7 +11,6 @@ import argparse
 script_dir = Path(__file__).parent.resolve()
 sys.path.insert(0, str(script_dir.parent))
 
-from src.config.ml_config import N_FEATURES, FEATURE_NAMES
 
 def generate_synthetic_data(n_samples=150):
     """Generate synthetic network traffic features.
@@ -102,7 +101,7 @@ if __name__ == "__main__":
         print(f"✅ Generated {len(df)} samples")
         print(f"   Saved to: {output_file}")
         print(f"   Features: {len(df.columns) - 1}")
-        print(f"\nYou can now train with:")
+        print("\nYou can now train with:")
         print(f"   python train_model.py --from-file {output_file} --version 1")
     except (ValueError, Exception) as e:
         print(f"Error: {e}")

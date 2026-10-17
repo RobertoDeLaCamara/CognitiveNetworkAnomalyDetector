@@ -1,4 +1,3 @@
-import pytest
 from src.config.security_config import (
     validate_security_config, 
     sanitize_for_logging,

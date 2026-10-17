@@ -173,13 +173,13 @@ def test_should_alert_rate_limiting(analyzer):
     alert_type = 'ICMP_FLOOD'
 
     # First 3 alerts should be allowed
-    assert analyzer._should_alert(ip, alert_type) == True
-    assert analyzer._should_alert(ip, alert_type) == True
-    assert analyzer._should_alert(ip, alert_type) == True
+    assert analyzer._should_alert(ip, alert_type) is True
+    assert analyzer._should_alert(ip, alert_type) is True
+    assert analyzer._should_alert(ip, alert_type) is True
 
     # 4th and 5th should be blocked
-    assert analyzer._should_alert(ip, alert_type) == False
-    assert analyzer._should_alert(ip, alert_type) == False
+    assert analyzer._should_alert(ip, alert_type) is False
+    assert analyzer._should_alert(ip, alert_type) is False
 
 
 class TestMLDetectionPaths:

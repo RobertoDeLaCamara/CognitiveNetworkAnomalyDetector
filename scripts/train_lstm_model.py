@@ -14,7 +14,6 @@ Usage:
 
 import argparse
 import sys
-import os
 from pathlib import Path
 
 # Add src to path
@@ -24,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from src.ml.lstm_autoencoder_detector import LSTMAutoencoderDetector
-from src.config.ml_config import FEATURE_NAMES, N_FEATURES
+from src.config.ml_config import FEATURE_NAMES
 from src.core.logger_setup import logger
 
 

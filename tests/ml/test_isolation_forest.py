@@ -40,13 +40,13 @@ class TestIsolationForestDetector:
         """Test detector initialization."""
         assert detector.contamination == 0.01
         assert detector.n_estimators == 10
-        assert detector.is_trained == False
+        assert detector.is_trained is False
     
     def test_train_valid_data(self, detector, training_data):
         """Test training with valid data."""
         detector.train(training_data)
         
-        assert detector.is_trained == True
+        assert detector.is_trained is True
         assert detector.scaler is not None
     
     def test_train_insufficient_samples(self, detector):
@@ -117,7 +117,7 @@ class TestIsolationForestDetector:
             new_detector = IsolationForestDetector()
             new_detector.load(model_path, scaler_path)
             
-            assert new_detector.is_trained == True
+            assert new_detector.is_trained is True
             
             # Test that predictions match
             test_sample = np.random.randn(N_FEATURES)
@@ -136,12 +136,12 @@ class TestIsolationForestDetector:
         """Test model info property."""
         # Before training
         info = detector.model_info
-        assert info['is_trained'] == False
+        assert info['is_trained'] is False
         
         # After training
         detector.train(training_data, feature_names=['f1', 'f2'])
         info = detector.model_info
-        assert info['is_trained'] == True
+        assert info['is_trained'] is True
         assert info['n_features'] == N_FEATURES
         assert info['feature_names'] == ['f1', 'f2']
 
