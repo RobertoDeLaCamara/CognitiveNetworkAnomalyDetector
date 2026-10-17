@@ -44,12 +44,12 @@ All new code should include tests. Aim to maintain or improve coverage.
 - **Packet capture** (requires root): `sudo python main.py`
 - **Dashboard:** `python dashboard.py` (Streamlit UI)
 
-## ML Tracking Experiment Tracking
+## MLflow Experiment Tracking
 
-Experiments are tracked with ML Tracking. When modifying models or the feature pipeline:
+Experiments are tracked with MLflow. When modifying models or the feature pipeline:
 - Log parameters, metrics, and artifacts consistently
-- Use meaningful experiment and run names
-- Check `mlruns/` for existing experiment history
+- Use meaningful experiment and run names (`--experiment-name`, `--run-name`)
+- Browse existing history with `mlflow ui --backend-store-uri sqlite:///$(pwd)/.mlflow/mlflow.db` (the local default store; `MLFLOW_TRACKING_URI` overrides it)
 
 ## Code Style
 

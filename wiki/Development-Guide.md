@@ -5,7 +5,7 @@
 - Python 3.10+
 - PyTorch 2.0+ (CPU)
 - Root / sudo for live packet capture
-- ML Tracking + S3-compatible storage (optional, for remote model registry)
+- MLflow server + MinIO/S3 (optional, for remote tracking and model registry)
 
 ## Local Setup
 
@@ -15,7 +15,7 @@ cd cognitive-anomaly-detector
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Set CAPTURE_INTERFACE, ML Tracking_TRACKING_URI, etc. in .env
+# Optionally set MLFLOW_TRACKING_URI, MLFLOW_S3_ENDPOINT_URL, AWS_* etc. in .env
 ```
 
 ## Training Workflow
@@ -39,8 +39,10 @@ python scripts/train_lstm_model.py \
 # 4. Verify models
 ls models/
 # isolation_forest_v1.joblib  scaler_v1.joblib
-# lstm_autoencoder.pt  lstm_config.json
+# lstm_autoencoder.pt  lstm_config.json  lstm_scaler.joblib
 ```
+
+`main.py` loads `isolation_forest_v{MODEL_VERSION}.joblib` / `scaler_v{MODEL_VERSION}.joblib` with `MODEL_VERSION = 5` (`src/config/ml_config.py`), so train with `--version 5` (or change the constant) for the detector to use the model.
 
 ## Running
 
@@ -81,7 +83,7 @@ pytest tests/ -v
 pytest tests/ --cov=src --cov-report=term-missing
 
 # Single test
-pytest tests/test_integration.py::TestEndToEndDetection::test_normal_traffic_detection -v
+pytest tests/test_integration.py::TestEndToEndDetection::test_packet_to_features_to_detection -v
 
 # Last failed
 pytest tests/ --lf
@@ -91,21 +93,20 @@ pytest tests/ --lf
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `CAPTURE_INTERFACE` | eth0 | Network interface |
 | `PACKET_WORKERS` | 2 | Worker thread count |
 | `PACKET_QUEUE_SIZE` | 10000 | Bounded queue capacity |
-| `MIN_PACKETS_FOR_ML` | 10 | Min per-IP packets before ML runs |
 | `ENSEMBLE_ANOMALY_THRESHOLD` | 0.6 | Alert firing threshold |
 | `ENSEMBLE_WEIGHT_IF` | 0.4 | Isolation Forest weight |
 | `ENSEMBLE_WEIGHT_LSTM` | 0.4 | LSTM weight |
 | `ENSEMBLE_WEIGHT_RULES` | 0.2 | Rules weight |
 | `THRESHOLD_MULTIPLIER` | 2.0 | Traffic spike multiplier |
 | `ICMP_THRESHOLD` | 50 | ICMP flood count |
-| `MODEL_VERSION` | 5 | Active model version number |
-| `ML Tracking_TRACKING_URI` | (empty) | Enable remote registry |
-| `ML Tracking_ENABLE_REMOTE_LOADING` | false | Load model from ML Tracking |
+| `MLFLOW_TRACKING_URI` | (empty -> local SQLite) | Remote tracking server |
+| `MLFLOW_ENABLE_REMOTE_LOADING` | false | Load model from the MLflow registry |
 | `LSTM_SEQUENCE_LENGTH` | 50 | LSTM buffer length |
 | `LSTM_EPOCHS` | 50 | Training epochs |
+
+`MIN_PACKETS_FOR_ML` (10) and `MODEL_VERSION` (5) are constants in `src/config/ml_config.py`, not environment variables. See [docs/CONFIGURATION.md](../docs/CONFIGURATION.md) for the full list.
 
 ## Project Structure
 
@@ -114,7 +115,7 @@ src/
 ├── core/
 │   ├── db_manager.py          SQLite anomalies table
 │   ├── logger_setup.py        Logging configuration
-│   ├── packet_queue.py        Async bounded queue + workers
+│   ├── packet_queue.py        Bounded queue + worker threads
 │   ├── resource_monitor.py    CPU/memory throttling
 │   └── utils.py               Entropy calculation
 ├── detection/
@@ -129,11 +130,11 @@ src/
 └── config/
     ├── config.py              Detection thresholds
     ├── ml_config.py           Feature/model settings
-    ├── ML Tracking_config.py       ML Tracking tracking
+    ├── mlflow_config.py       MLflow tracking + S3 settings
     ├── security_config.py     Input validation limits
     └── dashboard_config.py    Streamlit settings
 ```
 
-## CI/CD (CI/CD)
+## CI/CD (Jenkins)
 
-Stages: Setup → Run Tests → Stop (no Docker push for this project). Virtual environment managed per-build; PID-based process management for mock services during integration tests.
+`Jenkinsfile` on agent `agent-45`. Stages: Checkout → Build Image → Code Quality Checks (flake8 lint, pip-audit, in parallel) → Run Tests (pytest with coverage inside the built image) → SonarQube Analysis → Push to Registry.

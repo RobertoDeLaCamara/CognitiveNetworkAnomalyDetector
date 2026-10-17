@@ -5,16 +5,17 @@
 | Area | What was done |
 |---|---|
 | Credentials | Removed hardcoded credentials; `.env` uses placeholders only |
-| Path traversal | Model paths validated (no `..` or `~`), extension restricted to `.joblib` |
+| Path traversal | Model paths validated (no `..` or leading `~`), extension restricted to `.joblib`; training CSV paths reject `..` and `~` |
 | File size | 100 MB limit on model file loading to prevent DoS |
 | Input validation | Experiment/run names restricted to alphanumeric; interface names validated |
-| ReDoS | 1-second timeout on payload pattern matching (`src/detection/payload_analyzer.py`) |
+| Pattern-scan DoS | Payloads are truncated to 1024 bytes and scanned in a thread with a 1-second timeout (`src/detection/payload_analyzer.py`); on timeout it reports `TIMEOUT_ATTACK` |
 | Command injection | Network interface parameter validated with strict regex before use |
-| Pickle safety | Custom safe unpickler with module allowlist for model loading |
+| Model file checks | IF model/scaler files: size limit 100 MB and a pickle-header check before `joblib.load`. There is no unpickler allowlist: loading is not sandboxed |
 | Memory | Bounded packet queue and per-IP data cleanup prevent unbounded growth |
 | Thread safety | RLock on shared feature extractor data structures |
-| File permissions | Model directory created with `0o750` |
-| Log sanitization | File paths sanitized before inclusion in log output |
+| File permissions | Model and log directories created with `0o750`; log file set to `0o644` |
+| Log path validation | `ANOMALY_LOG_FILE` is checked for traversal and invalid characters. Log messages are not redacted |
+| Unused module | `src/config/security_config.py` (limits, IP ranges, `sanitize_for_logging`) is not imported by the runtime code; only its tests use it. The effective rate limit is hard-coded in `PacketAnalyzer` (3 alerts per 60 s per IP and alert type) |
 
 ## Operational Notes
 
@@ -38,5 +39,5 @@ python scripts/train_model.py --from-file data/training/synthetic_baseline.csv
 - [ ] `.env` not committed to version control
 - [ ] Real credentials not in any committed file
 - [ ] `models/` directory has restricted permissions (`chmod 750 models/`)
-- [ ] ML Tracking server uses authentication in production
+- [ ] MLflow server uses authentication in production
 - [ ] Log files don't expose sensitive payload content

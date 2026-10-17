@@ -3,15 +3,15 @@
 ## Local Install
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.10+ (Docker image uses 3.11)
 - `libpcap` (for packet capture): `sudo apt install libpcap-dev` / `brew install libpcap`
 - Root/sudo access for live traffic capture
 
 ### Steps
 
 ```bash
-git clone https://github.com/RobertoDeLaCamara/DetectorAnomalias.git
-cd cognitive-anomaly-detector
+git clone https://github.com/RobertoDeLaCamara/CognitiveNetworkAnomalyDetector.git
+cd CognitiveNetworkAnomalyDetector
 
 python3 -m venv venv
 source venv/bin/activate
@@ -47,8 +47,9 @@ python scripts/train_model.py --from-file data/training/synthetic_baseline.csv
 
 **Model not found**
 ```bash
-ls models/    # check if isolation_forest_v1.joblib exists
-# If not, run training first
+ls models/    # check that isolation_forest_v5.joblib and scaler_v5.joblib exist
+# The detector loads v{MODEL_VERSION} (MODEL_VERSION = 5 in src/config/ml_config.py).
+# If missing, train with --version 5 (or change MODEL_VERSION)
 ```
 
 ---
@@ -78,14 +79,15 @@ docker-compose down
 
 ### Notes
 - The `detector` service uses `network_mode: host` to capture host traffic.
-- Volumes `./models`, `./data`, and `./.ML Tracking` are mounted for persistence.
-- Copy `.env.example` to `.env` before starting if you use remote ML Tracking.
+- The whole project directory is bind-mounted (`.:/app`), so `models/`, `data/`, `.mlflow/` and `anomalies.db` persist on the host.
+- `docker-compose.yml` loads `.env` (`env_file`): copy `.env.example` to `.env` before starting, even if you do not use remote MLflow.
+- Known issue: the `trainer` and `detector` services use entrypoints `train_model.py` / `main.py` relative to `/app`, but `train_model.py` lives in `scripts/`, so `docker-compose run --rm trainer ...` fails until the entrypoint is fixed.
 
 ---
 
-## Remote ML Tracking + S3-compatible storage
+## Remote MLflow + S3-compatible storage
 
-The project supports a remote ML Tracking tracking server with S3-compatible storage artifact storage. This is optional — without it, experiments are tracked locally in `.mlflow/mlflow.db` (SQLite).
+The project supports a remote MLflow tracking server with S3-compatible artifact storage (MinIO). This is optional — without it, experiments are tracked locally in `.mlflow/mlflow.db` (SQLite).
 
 ### Configure
 
@@ -96,28 +98,26 @@ cp .env.example .env
 Edit `.env`:
 
 ```bash
-ML Tracking_TRACKING_URI=http://<ML Tracking-server>:5050
-ML Tracking_S3_ENDPOINT_URL=http://<S3-compatible storage-server>:9000
-ML Tracking_S3_BUCKET=ML Tracking-artifacts
+MLFLOW_TRACKING_URI=http://<mlflow-server>:5050
+MLFLOW_S3_ENDPOINT_URL=http://<minio-server>:9000
+MLFLOW_S3_BUCKET=mlflow-artifacts
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 ```
 
-> S3-compatible storage uses port **9000** for the API and **9001** for the web UI.
+> MinIO uses port **9000** for the S3 API and **9001** for the web UI. `MLFLOW_S3_ENDPOINT_URL` must match `http(s)://host:port` exactly.
 
-### Get S3-compatible storage credentials
-1. Open S3-compatible storage UI: `http://<S3-compatible storage-server>:9001`
+### Get MinIO credentials
+1. Open the MinIO UI: `http://<minio-server>:9001`
 2. Go to **Access Keys** → create or copy an existing key
 
 ### Test the connection
 
 ```bash
-python scripts/test_ML Tracking_connection.py
-# Expected:
-# ✅ ML Tracking Server:  PASS
-# ✅ S3-compatible storage Storage:  PASS
-# ✅ End-to-End:     PASS
+python scripts/test_mlflow_connection.py
 ```
+
+The script tests the MLflow server, MinIO storage and an end-to-end run, and prints a PASS/FAIL line for each (`MLflow Server`, `MinIO Storage`, `End-to-End`; MinIO shows `NOT CONFIGURED` if no S3 endpoint is set).
 
 ### Use remote vs local
 
@@ -126,7 +126,7 @@ python scripts/test_ML Tracking_connection.py
 python scripts/train_model.py --duration 60 --version 1
 
 # Force local for a single run
-MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --no-mlflow
+MLFLOW_TRACKING_URI="" python scripts/train_model.py --duration 60 --version 1
 
 # View local experiments
 mlflow ui --backend-store-uri sqlite:///$(pwd)/.mlflow/mlflow.db
@@ -147,7 +147,7 @@ The original `mlruns/` data is left untouched.
 
 | Error | Fix |
 |---|---|
-| Cannot connect to ML Tracking | Check server is up: `curl http://<server>:5050` |
-| Cannot connect to S3-compatible storage | Use port 9000, not 9001 |
-| Bucket not found | Create `ML Tracking-artifacts` bucket in S3-compatible storage UI, or ML Tracking will create it on first use |
-| Credentials error | Verify `.env` has no typos; re-run `test_ML Tracking_connection.py` |
+| Cannot connect to MLflow | Check server is up: `curl http://<server>:5050` |
+| Cannot connect to S3 storage | Use port 9000, not 9001 |
+| Bucket not found | Create the `mlflow-artifacts` bucket in the MinIO UI |
+| Credentials error | Verify `.env` has no typos; re-run `test_mlflow_connection.py` |
