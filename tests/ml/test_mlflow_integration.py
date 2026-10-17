@@ -31,8 +31,9 @@ def temp_mlflow_dir():
     temp_dir = tempfile.mkdtemp()
     original_uri = os.environ.get('MLFLOW_TRACKING_URI')
     
-    # Set tracking URI to temp directory
-    os.environ['MLFLOW_TRACKING_URI'] = f'file://{temp_dir}/mlruns'
+    # Set tracking URI to a SQLite database in the temp directory
+    # (MLflow 3.x rejects the file-store backend)
+    os.environ['MLFLOW_TRACKING_URI'] = f'sqlite:///{temp_dir}/mlflow.db'
     
     yield temp_dir
     
@@ -80,7 +81,6 @@ class TestMLflowConfiguration:
         from src.config.mlflow_config import MLFLOW_DIR
         
         assert MLFLOW_DIR.exists()
-        assert (MLFLOW_DIR / 'mlruns').exists()
         assert (MLFLOW_DIR / 'artifacts').exists()
 
 
