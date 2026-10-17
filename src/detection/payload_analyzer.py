@@ -42,13 +42,14 @@ def _validate_payload(payload: bytes) -> bool:
 
     Returns:
         True if payload is valid for analysis
+
+    Size is deliberately not checked here: detect_malicious_payload truncates to
+    MAX_PAYLOAD_SCAN_SIZE. Rejecting larger payloads would let any attack hide
+    in a packet bigger than that limit (a normal 1460-byte TCP segment already is).
     """
     if not isinstance(payload, bytes):
         return False
     if len(payload) == 0:
-        return False
-    if len(payload) > MAX_PAYLOAD_SCAN_SIZE:
-        logger.debug(f"Payload too large for scanning: {len(payload)} bytes")
         return False
     return True
 
@@ -60,7 +61,8 @@ def detect_malicious_payload(payload: bytes) -> Tuple[bool, Optional[str]]:
     reducing false positives (e.g., "UNION SELECT" before "SELECT").
 
     Args:
-        payload: Raw bytes payload to analyze (max MAX_PAYLOAD_SCAN_SIZE bytes)
+        payload: Raw bytes payload to analyze. Only the first MAX_PAYLOAD_SCAN_SIZE
+            bytes are scanned; a longer payload is truncated, not skipped.
 
     Returns:
         Tuple of (is_malicious: bool, pattern_found: str or None)
@@ -68,7 +70,9 @@ def detect_malicious_payload(payload: bytes) -> Tuple[bool, Optional[str]]:
     if not _validate_payload(payload):
         return False, None
 
-    # Limit payload size for performance and security
+    # Limit the scanned size for performance and security
+    if len(payload) > MAX_PAYLOAD_SCAN_SIZE:
+        logger.debug(f"Payload of {len(payload)} bytes truncated to {MAX_PAYLOAD_SCAN_SIZE} for scanning")
     scan_payload = payload[:MAX_PAYLOAD_SCAN_SIZE]
 
     try:
