@@ -19,7 +19,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 4. Generate baseline data and train the model:
    ```bash
    python scripts/generate_synthetic_data.py
-   python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+   python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
    ```
 
 ## Development Workflow
@@ -44,12 +44,12 @@ All new code should include tests. Aim to maintain or improve coverage.
 - **Packet capture** (requires root): `sudo python main.py`
 - **Dashboard:** `python dashboard.py` (Streamlit UI)
 
-## ML Tracking Experiment Tracking
+## MLflow Experiment Tracking
 
-Experiments are tracked with ML Tracking. When modifying models or the feature pipeline:
+Experiments are tracked with MLflow. When modifying models or the feature pipeline:
 - Log parameters, metrics, and artifacts consistently
-- Use meaningful experiment and run names
-- Check `mlruns/` for existing experiment history
+- Use meaningful experiment and run names (`--experiment-name`, `--run-name`)
+- Browse existing history with `mlflow ui --backend-store-uri sqlite:///$(pwd)/.mlflow/mlflow.db` (the local default store; `MLFLOW_TRACKING_URI` overrides it)
 
 ## Code Style
 

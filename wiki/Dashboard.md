@@ -16,17 +16,19 @@ Open http://localhost:8501
 
 ### 1. Home
 
-Real-time overview updated on page refresh (or auto-refresh if enabled):
+Real-time overview updated on page refresh (or auto-refresh if enabled; sidebar checkbox, 1-60 s slider). A slider selects the window: last 5-120 minutes (default 30).
 
-- **Metric cards**: total anomalies, ML anomalies, rule-based anomalies, unique IPs affected
-- **Timeline chart**: anomalies over time (Plotly line chart, configurable granularity)
-- **Score distribution**: histogram of confidence_score values across all alerts
-- **Top attacking IPs**: bar chart of top 10 IPs by alert count
+- **Metric cards**: four `st.metric` cards (total, ML, rule-based anomalies, unique IPs)
+- **Timeline chart**: anomalies over time
+- **Score distribution**: histogram of `anomaly_score` values
+- **Top IPs**: bar chart of top 10 IPs by alert count
+- **Alert type distribution**
+- **Recent anomalies** table (at most `MAX_ANOMALIES_DISPLAY` = 500 rows)
 
 ### 2. Historical Analysis
 
 - Date range selector (start/end datetime)
-- Aggregation interval selector (hour, day, week)
+- Aggregation interval selector (5min, 15min, 1H (default), 4H, 1D)
 - Anomaly rate trend line
 - CSV export button (filtered by selected date range)
 
@@ -35,17 +37,15 @@ Real-time overview updated on page refresh (or auto-refresh if enabled):
 - Search by IP address
 - Filter by alert type (RULE, ML, ML_ENSEMBLE, ICMP_FLOOD)
 - Filter by anomaly score threshold
-- Detailed view: shows all alert fields including `raw_data` JSON (features + patterns matched)
-- `is_reviewed` toggle for manual review tracking
+- Detailed view of a selected alert
+- The `is_reviewed` column exists in the schema but the dashboard has no review toggle
 
 ### 4. Model Info
 
-- Loaded model type (IsolationForest)
-- Model version (from filename: `isolation_forest_v5.joblib` → v5)
-- Feature names (from `ml_config.py`)
-- Training date (file mtime)
-- File size in MB
-- ML Tracking experiment link (if `ML Tracking_TRACKING_URI` set)
+- Model type, number of features, contamination, number of estimators
+- Model version (from the model file metadata; the highest `isolation_forest_v*.joblib` is loaded)
+- Trained date and file size (KB)
+- Feature names (from `dashboard_config.py`; note it names feature 16 `avg_entropy`, whereas `ml_config.py` calls it `payload_entropy`)
 
 ### 5. Traffic Insights
 
@@ -57,24 +57,22 @@ Real-time overview updated on page refresh (or auto-refresh if enabled):
 
 Read-only view of active configuration values:
 
-- Detection thresholds (THRESHOLD_MULTIPLIER, ICMP_THRESHOLD, etc.)
-- ML settings (contamination, n_estimators, sequence length, etc.)
-- Ensemble weights and threshold
+- Detection rules: THRESHOLD_MULTIPLIER, ICMP_THRESHOLD, HIGH_TRAFFIC_PORTS, PAYLOAD_THRESHOLD
+- ML settings: ML_ENABLED, MIN_PACKETS_FOR_ML, ML_ANOMALY_THRESHOLD, MODEL_DIR (ensemble weights are not shown)
 
 ### 7. Reports
 
 Generate downloadable HTML incident summary reports:
 
-- Select date range and minimum severity
-- Report includes: timeline chart, top IPs, alert table, score distribution
-- Download as single-file HTML
+- Select a report period of 1-30 days (no severity filter)
+- Preview in the page, then download as a single-file HTML
 
 ### 8. Live Logs
 
 - Tail `anomaly_detection.log`
-- Configurable line count (50–500)
-- Auto-refresh toggle (5s interval)
-- Color-coded severity levels
+- Configurable line count (50-2000, default 200)
+- "Refresh Logs" button; follows the global sidebar auto-refresh interval
+- Rendered as a plain code block (no severity colouring)
 
 ## Data Sources
 
@@ -84,6 +82,7 @@ Generate downloadable HTML incident summary reports:
 | Live Logs | `anomaly_detection.log` — direct file read |
 | Model Info | `models/isolation_forest_v*.joblib` — file metadata |
 | System Config | `src/config/config.py` + `src/config/ml_config.py` — imported at runtime |
+| MLflow loader | Only created when `MLFLOW_TRACKING_URI` is set (even to an empty string, as in `.env.example`) |
 
 ## Database Schema
 
@@ -92,10 +91,10 @@ CREATE TABLE anomalies (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   timestamp   DATETIME DEFAULT CURRENT_TIMESTAMP,
   ip_address  TEXT NOT NULL,
-  alert_type  TEXT NOT NULL,   -- RULE | ML | ML_ENSEMBLE | ICMP_FLOOD
+  alert_type  TEXT NOT NULL,   -- RULE | ML | ML_ENSEMBLE | ICMP_FLOOD (else UNKNOWN)
   description TEXT,
-  anomaly_score REAL,          -- confidence_score [0,1]
-  raw_data    TEXT,            -- JSON: {features, patterns_matched, engine_scores}
+  anomaly_score REAL,          -- ML_ENSEMBLE: confidence [0,1]; ML: raw IF score; RULE/ICMP_FLOOD: 0.0
+  raw_data    TEXT,            -- JSON or NULL: ML_ENSEMBLE -> {engine: {raw_score, normalized_score, prediction}}; ML -> {"features": [...]}
   is_reviewed BOOLEAN DEFAULT 0
 );
 CREATE INDEX idx_timestamp ON anomalies(timestamp);

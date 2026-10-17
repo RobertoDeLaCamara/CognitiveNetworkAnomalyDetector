@@ -17,7 +17,7 @@ services:
     user: root
     # Host networking required for monitoring host traffic
     network_mode: host
-    entrypoint: [ "python", "train_model.py" ]
+    entrypoint: [ "python", "scripts/train_model.py" ]
     # Default command (can be overridden)
     command: [ "--duration", "60" ]
 

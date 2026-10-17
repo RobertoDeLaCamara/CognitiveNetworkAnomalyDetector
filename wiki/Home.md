@@ -1,6 +1,6 @@
 # Cognitive Anomaly Detector
 
-Triple-engine ensemble network anomaly detector: Isolation Forest (40%) + LSTM Autoencoder (40%) + rule-based (20%) over 18 per-IP features. Scapy capture → async bounded queue → worker threads → ensemble scorer (threshold 0.6) → SQLite alerts.
+Triple-engine ensemble network anomaly detector: Isolation Forest (40%) + LSTM Autoencoder (40%) + rule-based (20%) over 18 per-IP features. Scapy capture → bounded queue (`queue.Queue`) → worker threads → ensemble scorer (threshold 0.6) → SQLite alerts.
 
 ## Quick Start
 
@@ -13,7 +13,7 @@ cp .env.example .env
 python scripts/generate_synthetic_data.py
 
 # Train Isolation Forest
-python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 1
+python scripts/train_model.py --from-file data/training/synthetic_baseline.csv --version 5
 
 # Train LSTM Autoencoder
 python scripts/train_lstm_model.py --from-file data/training/synthetic_baseline.csv
@@ -26,7 +26,7 @@ sudo venv/bin/python main.py
 
 # Docker
 docker-compose up -d detector
-docker-compose run --rm trainer --duration 60
+docker-compose run --rm trainer --duration 60   # NOTE: trainer entrypoint points at train_model.py, which lives in scripts/
 ```
 
 ## Stack
@@ -36,27 +36,31 @@ docker-compose run --rm trainer --duration 60
 | Packet capture | Scapy (root required) | — |
 | Dashboard | Streamlit | 8501 |
 | Database | SQLite (`anomalies.db`) | — |
-| Model registry | ML Tracking + S3-compatible storage (optional) | — |
+| Model registry | MLflow + MinIO/S3 artifact store (optional) | — |
 
 ## Wiki Pages
 
-1. [Architecture and Data Flow](Architecture-and-Data-Flow.md)
-2. [ML Pipeline](ML-Pipeline.md)
-3. [Dashboard](Dashboard.md)
-4. [Security Hardening](Security-Hardening.md)
-5. [Development Guide](Development-Guide.md)
+1. [Installation](Installation.md)
+2. [Configuration](Configuration.md)
+3. [Architecture and Data Flow](Architecture-and-Data-Flow.md)
+4. [ML Pipeline](ML-Pipeline.md)
+5. [MLflow and Model Tracking](MLflow-and-Model-Tracking.md)
+6. [Dashboard](Dashboard.md)
+7. [Security Hardening](Security-Hardening.md)
+8. [Development Guide](Development-Guide.md)
+9. [Adding a Rule or Feature](Adding-a-Rule-or-Feature.md)
 
 ## Key Layout
 
 ```
 main.py                          entry point — packet capture, CLI flags
 dashboard.py / run_dashboard.sh  Streamlit app
-src/detection/anomaly_detector.py   PacketAnalyzer — main detection class
+src/detection/anomaly_detector.py   PacketAnalyzer — main detection class (LSTM hot reload lives here)
 src/detection/ensemble_scorer.py    weighted fusion, EnsembleResult
-src/detection/payload_analyzer.py   regex patterns + ReDoS timeout
+src/detection/payload_analyzer.py   substring patterns + 1 s scan timeout
 src/ml/feature_extractor.py         18-feature per-IP extraction
-src/ml/isolation_forest_detector.py IF wrapper + hot reload
-src/ml/lstm_autoencoder_detector.py PyTorch AE + hot reload
+src/ml/isolation_forest_detector.py IF wrapper (train/save/load, MLflow registry loading)
+src/ml/lstm_autoencoder_detector.py PyTorch AE (train/save/load)
 src/core/db_manager.py              SQLite anomalies table
 src/config/config.py                detection thresholds
 src/config/ml_config.py             model/ensemble settings
@@ -66,7 +70,8 @@ models/                             isolation_forest_v5.joblib, lstm_autoencoder
 
 ## Non-Obvious Facts
 
-- ML Tracking is optional. Without it, models load from local joblib files. Set `ML Tracking_TRACKING_URI` + S3/S3-compatible storage credentials in `.env` for remote registry.
-- LSTM hot reload: model file mtime checked every 60s; changed file triggers in-place reload without restart.
-- Alert cooldown: max 3 alerts per (IP, alert_type) per 60s — prevents alert flooding while ML inference continues per-packet.
-- Capture interface: set `CAPTURE_INTERFACE` env var (default: `eth0`).
+- MLflow is optional. Without it, models load from local joblib files and training runs are tracked in `.mlflow/mlflow.db` (SQLite). Set `MLFLOW_TRACKING_URI` + `MLFLOW_S3_ENDPOINT_URL` + AWS credentials in `.env` for a remote server, and `MLFLOW_ENABLE_REMOTE_LOADING=true` to load the model from the registry.
+- LSTM hot reload: model file mtime checked at most every 60s (from `analyze_packet`); a newer file triggers an in-place reload without restart. The Isolation Forest is not hot-reloaded.
+- Alert cooldown: max 3 alerts per (IP, alert_type) per 60s (hard-coded in `PacketAnalyzer`) — prevents alert flooding while ML inference continues per-packet.
+- Capture interface: pass `main.py --interface IFACE` (default: Scapy's default interface). There is no `CAPTURE_INTERFACE` env var.
+- Model version: the detector loads `isolation_forest_v{MODEL_VERSION}.joblib` (`MODEL_VERSION = 5` in `ml_config.py`); train with `--version 5` for `main.py` to use it.
