@@ -147,4 +147,7 @@ sudo venv/bin/python main.py [--duration N] [--interface IFACE]
 ```
 
 - `--duration N` — length in seconds of each capture window, 1-3600 (default: `MONITORING_INTERVAL`, 60). After each window a traffic summary is printed and capture restarts; the process runs until Ctrl+C / SIGTERM.
+- `--pcap FILE` — replay a PCAP file through the detector instead of capturing (streaming; no root). Alerts are stored in `anomalies.db`.
+- `--replay-speed {fast,original}` — with `--pcap`/`--dry-run`: `fast` (default) enqueues without delay; `original` keeps the capture's timing, each gap capped at 5 s.
+- `--dry-run` — no capture and no root: analyses `--pcap`, or a built-in deterministic sample (benign HTTPS, a SQL-injection payload, an uncommon port and an ICMP flood). Alerts go to a temporary database, never to `anomalies.db`.
 - `--interface IFACE` — network interface to capture on (default: Scapy's default interface). Must be alphanumeric/`_`/`-`, at most 15 chars, and exist on the host.
