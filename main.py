@@ -10,10 +10,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from scapy.all import sniff
-from src.detection.anomaly_detector import analyze_packet, packet_count_per_ip
+from src.detection.anomaly_detector import analyze_packet, packet_analyzer, packet_count_per_ip
 from src.config.config import MONITORING_INTERVAL
 from src.core.logger_setup import logger
 from src.core.packet_queue import PacketProcessor
+from src.core.pcap_replay import REPLAY_SPEEDS, replay_packets, replay_pcap, synthetic_packets
 
 # Global flag for graceful shutdown
 shutdown_requested = False
@@ -24,6 +25,57 @@ def signal_handler(signum, frame):
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
     print("\nShutdown requested, stopping monitoring...")
     shutdown_requested = True
+
+def print_summary(processor):
+    """Print the per-IP traffic summary and the packet processor statistics."""
+    print("\nTraffic summary:")
+    if not packet_count_per_ip:
+        print("No traffic was captured.")
+        logger.info("No traffic captured during monitoring period")
+    else:
+        logger.info(f"Captured traffic from {len(packet_count_per_ip)} unique IPs")
+        # Print the number of packets sent by each IP address
+        for ip, count in sorted(packet_count_per_ip.items(), key=lambda x: x[1], reverse=True):
+            print(f"IP: {ip}, Packets sent: {count}")
+
+    stats = processor.stats
+    print(f"\nPacket processor: queue_size={stats['queue_size']}, "
+          f"dropped={stats['dropped_packets']}, workers={stats['worker_count']}")
+
+def run_offline(processor, pcap_path=None, speed="fast", dry_run=False):
+    """Run the detection pipeline on a PCAP file or the built-in sample (no capture, no root).
+
+    In dry-run mode alerts go to a temporary database instead of anomalies.db.
+    Returns the number of packets read.
+    """
+    temp_dir = None
+    if dry_run:
+        import tempfile
+        from src.core.db_manager import DBManager
+        temp_dir = tempfile.mkdtemp(prefix="cad-dry-run-")
+        packet_analyzer.db_manager = DBManager(os.path.join(temp_dir, "dry-run.db"))
+        print("Dry run: alerts are stored in a temporary database, not in anomalies.db.")
+
+    try:
+        source = pcap_path or "the built-in synthetic sample"
+        print(f"\nReplaying {source} (speed: {speed})...")
+        processor.start()
+        def stop():
+            return shutdown_requested
+
+        if pcap_path:
+            count = replay_pcap(pcap_path, processor, speed, stop)
+        else:
+            count = replay_packets(synthetic_packets(), processor, speed, stop)
+        if not processor.drain():
+            logger.warning("Timed out waiting for queued packets to be processed")
+        print(f"\nReplay finished: {count} packets read.")
+        print_summary(processor)
+        return count
+    finally:
+        if temp_dir:
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 def check_privileges():
     """Check if running with sufficient privileges for packet capture."""
@@ -58,15 +110,43 @@ def main():
         default=None,
         help='Network interface to monitor (default: all)'
     )
-    
+    parser.add_argument(
+        '--pcap',
+        type=str,
+        default=None,
+        metavar='FILE',
+        help='Replay a PCAP file through the detector instead of capturing live traffic (no root needed)'
+    )
+    parser.add_argument(
+        '--replay-speed',
+        choices=REPLAY_SPEEDS,
+        default='fast',
+        help="With --pcap/--dry-run: 'fast' = no delay (default), 'original' = keep the capture's timing "
+             "(each gap capped at 5 s)"
+    )
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Run the full pipeline without live capture or root, on --pcap or a built-in synthetic sample. '
+             'Alerts go to a temporary database, not to anomalies.db'
+    )
+
     try:
         args = parser.parse_args()
-        
+
         # Validate arguments with strict security checks
         if args.duration <= 0 or args.duration > 3600:
             print("Error: Duration must be between 1 and 3600 seconds")
             return 1
-        
+
+        if (args.pcap or args.dry_run) and args.interface:
+            print("Error: --interface cannot be combined with --pcap or --dry-run (they do not capture live traffic)")
+            return 1
+
+        if args.pcap and not os.path.isfile(args.pcap):
+            print(f"Error: PCAP file not found: {args.pcap}")
+            return 1
+
         if args.interface:
             # Strict interface name validation to prevent injection
             import re
@@ -91,6 +171,13 @@ def main():
 
     try:
         logger.info("Starting anomaly detector")
+
+        # Offline mode: replay a PCAP file or the built-in sample, then exit.
+        if args.pcap or args.dry_run:
+            run_offline(processor, args.pcap, args.replay_speed, args.dry_run)
+            print("Replay complete.")
+            logger.info("Offline replay finished successfully")
+            return 0
 
         # Check privileges
         check_privileges()
@@ -131,21 +218,8 @@ def main():
                 print(f"Error: Network interface problem - {e}")
                 return 1
 
-            # Display summary of captured traffic
-            print("\nTraffic summary:")
-            if not packet_count_per_ip:
-                print("No traffic was captured.")
-                logger.info("No traffic captured during monitoring period")
-            else:
-                logger.info(f"Captured traffic from {len(packet_count_per_ip)} unique IPs")
-                # Print the number of packets sent by each IP address
-                for ip, count in sorted(packet_count_per_ip.items(), key=lambda x: x[1], reverse=True):
-                    print(f"IP: {ip}, Packets sent: {count}")
-
-            # Print packet processor stats
-            stats = processor.stats
-            print(f"\nPacket processor: queue_size={stats['queue_size']}, "
-                  f"dropped={stats['dropped_packets']}, workers={stats['worker_count']}")
+            # Display summary of captured traffic and packet processor stats
+            print_summary(processor)
 
             if shutdown_requested:
                 break

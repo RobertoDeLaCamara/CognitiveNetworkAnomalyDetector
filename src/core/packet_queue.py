@@ -7,6 +7,7 @@ the capture loop on expensive per-packet analysis.
 import os
 import queue
 import threading
+import time
 from typing import Callable
 
 from src.core.logger_setup import logger
@@ -36,13 +37,34 @@ class PacketProcessor:
         self._dropped_count = 0
         self._dropped_lock = threading.Lock()
 
-    def enqueue(self, packet) -> None:
-        """Non-blocking enqueue; increments dropped count on queue full."""
+    def enqueue(self, packet, block: bool = False) -> None:
+        """Enqueue a packet.
+
+        By default non-blocking: a full queue drops the packet and increments
+        the dropped count (what live capture needs). With ``block=True`` it
+        waits for room instead, which offline replay uses to avoid losing
+        packets from a large file.
+        """
         try:
-            self._queue.put_nowait(packet)
+            if block:
+                self._queue.put(packet)
+            else:
+                self._queue.put_nowait(packet)
         except queue.Full:
             with self._dropped_lock:
                 self._dropped_count += 1
+
+    def drain(self, timeout: float = 60.0) -> bool:
+        """Wait until every queued packet has been processed.
+
+        Returns True when the queue is empty and idle, False on timeout.
+        """
+        deadline = time.monotonic() + timeout
+        while self._queue.unfinished_tasks > 0:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.05)
+        return True
 
     def _worker_loop(self) -> None:
         """Worker loop: pull packets from the queue and process them."""
